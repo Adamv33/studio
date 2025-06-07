@@ -5,7 +5,7 @@ import { Instructor } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mail, Phone, UserCheck, UserX, UserClock, Edit3, Trash2, ChevronRight } from 'lucide-react';
+import { Mail, Phone, UserCheck, UserX, Clock, Edit3, Trash2, ChevronRight } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,7 +26,7 @@ interface InstructorCardProps {
 const StatusIcon = ({ status }: { status: Instructor['status'] }) => {
   if (status === 'Active') return <UserCheck className="h-4 w-4 text-green-500" />;
   if (status === 'Inactive') return <UserX className="h-4 w-4 text-red-500" />;
-  if (status === 'Pending') return <UserClock className="h-4 w-4 text-yellow-500" />;
+  if (status === 'Pending') return <Clock className="h-4 w-4 text-yellow-500" />;
   return null;
 };
 
