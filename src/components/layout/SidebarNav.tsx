@@ -1,8 +1,9 @@
+
 'use client';
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Users, BookOpen, BarChart3, FolderKanban, FileUp, Settings } from 'lucide-react';
+import { Home, Users, BookOpen, BarChart3, FolderKanban, MessageSquare, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 
@@ -12,6 +13,7 @@ const navItems = [
   { href: '/courses', label: 'Courses', icon: BookOpen },
   { href: '/courses/stats', label: 'Statistics', icon: BarChart3 },
   { href: '/curriculum', label: 'Curriculum', icon: FolderKanban },
+  { href: '/chat', label: 'Chat', icon: MessageSquare },
   // Personal documents are part of instructor profile, so no separate nav item here.
   // { href: '/settings', label: 'Settings', icon: Settings }, // Example for future
 ];
