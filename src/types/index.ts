@@ -4,7 +4,6 @@ export interface Certification {
   name: string;
   issuedDate?: string; 
   expiryDate?: string; 
-  isCurrent?: boolean; 
 }
 
 export type UserRole = 'Instructor' | 'TrainingSiteCoordinator' | 'TrainingCenterCoordinator';
@@ -65,3 +64,4 @@ export interface PersonalDocument {
   instructorId: string;
   size?: string;
 }
+

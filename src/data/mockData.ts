@@ -14,8 +14,8 @@ export const mockInstructors: Instructor[] = [
     mailingAddress: '1 EMskillz HQ, Innovation Park, USA',
     emailAddress: 'alan.grant.tcc@example.com',
     certifications: {
-      bls: { name: 'BLS', expiryDate: '2026-01-01', issuedDate: '2024-01-01', isCurrent: true },
-      acls: { name: 'ACLS', expiryDate: '2026-01-01', issuedDate: '2024-01-01', isCurrent: true },
+      bls: { name: 'BLS', expiryDate: '2026-01-01', issuedDate: '2024-01-01' },
+      acls: { name: 'ACLS', expiryDate: '2026-01-01', issuedDate: '2024-01-01' },
     },
     isTrainingFaculty: true,
     supervisor: 'EMskillz LLC Board', // Ultimate supervisor
@@ -35,10 +35,10 @@ export const mockInstructors: Instructor[] = [
     mailingAddress: '123 Health St, Wellness City, TX 77001',
     emailAddress: 'emily.carter.tsc@example.com',
     certifications: {
-      heartsaver: { name: 'Heartsaver', expiryDate: '2025-08-15', issuedDate: '2023-08-15', isCurrent: true },
-      bls: { name: 'BLS', expiryDate: '2025-06-20', issuedDate: '2023-06-20', isCurrent: true },
-      acls: { name: 'ACLS', expiryDate: '2024-12-01', issuedDate: '2022-12-01', isCurrent: true },
-      pals: { name: 'PALS', expiryDate: '2025-02-10', issuedDate: '2023-02-10', isCurrent: true },
+      heartsaver: { name: 'Heartsaver', expiryDate: '2025-08-15', issuedDate: '2023-08-15' },
+      bls: { name: 'BLS', expiryDate: '2025-06-20', issuedDate: '2023-06-20' },
+      acls: { name: 'ACLS', expiryDate: '2024-12-01', issuedDate: '2022-12-01' },
+      pals: { name: 'PALS', expiryDate: '2025-02-10', issuedDate: '2023-02-10' },
     },
     isTrainingFaculty: true,
     supervisor: 'Dr. Alan Grant (TCC)', // Supervised by TCC
@@ -59,8 +59,8 @@ export const mockInstructors: Instructor[] = [
     mailingAddress: '456 Vital Ave, Medville, CA 90210',
     emailAddress: 'john.lee@example.com',
     certifications: {
-      heartsaver: { name: 'Heartsaver', expiryDate: '2024-11-01', issuedDate: '2022-11-01', isCurrent: true },
-      bls: { name: 'BLS', expiryDate: '2025-01-25', issuedDate: '2023-01-25', isCurrent: true },
+      heartsaver: { name: 'Heartsaver', expiryDate: '2024-11-01', issuedDate: '2022-11-01' },
+      bls: { name: 'BLS', expiryDate: '2025-01-25', issuedDate: '2023-01-25' },
     },
     isTrainingFaculty: false,
     supervisor: 'Dr. Emily Carter (TSC)', // Supervised by TSC
@@ -80,7 +80,7 @@ export const mockInstructors: Instructor[] = [
     mailingAddress: '789 Care Blvd, Aidtown, FL 33001',
     emailAddress: 'maria.rodriguez@example.com',
     certifications: {
-      bls: { name: 'BLS', expiryDate: '2023-05-10', issuedDate: '2021-05-10', isCurrent: false }, // Expired
+      bls: { name: 'BLS', expiryDate: '2023-05-10', issuedDate: '2021-05-10' }, // Expired
     },
     isTrainingFaculty: true,
     supervisor: 'Dr. Emily Carter (TSC)', // Also supervised by TSC
@@ -178,3 +178,4 @@ export const mockCurriculum: CurriculumDocument[] = [
   },
   { id: 'curr_d_007', name: 'General Instructor Guidelines.pdf', type: 'pdf', path: '#', size: '500KB', lastModified: '2023-10-01', description: 'Overall guidelines for all instructors.' },
 ];
+
