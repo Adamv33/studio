@@ -1,3 +1,4 @@
+
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -5,7 +6,7 @@ import { Instructor } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mail, Phone, UserCheck, UserX, Clock, Edit3, Trash2, ChevronRight } from 'lucide-react';
+import { UserCheck, UserX, Clock, Trash2, ChevronRight, MessageSquare } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,14 +55,8 @@ export function InstructorCard({ instructor, onDelete }: InstructorCardProps) {
         </div>
       </CardHeader>
       <CardContent className="p-4 pt-0 text-sm space-y-2 flex-grow">
-        <div className="flex items-center text-muted-foreground">
-          <Mail className="h-4 w-4 mr-2 flex-shrink-0" />
-          <span className="truncate">{instructor.emailAddress}</span>
-        </div>
-        <div className="flex items-center text-muted-foreground">
-          <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
-          <span>{instructor.phoneNumber}</span>
-        </div>
+        {/* Email and Phone removed for privacy */}
+        {/* Mailing address (and thus city/state) is not displayed due to unstructured data and privacy concerns. */}
         {instructor.isTrainingFaculty && (
            <Badge variant="outline" className="text-xs">Training Faculty</Badge>
         )}
@@ -89,11 +84,16 @@ export function InstructorCard({ instructor, onDelete }: InstructorCardProps) {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-        <Link href={`/instructors/${instructor.id}`} passHref>
-          <Button variant="outline" size="sm">
-            View Profile <ChevronRight className="h-4 w-4 ml-1" />
+        <div className="flex gap-2">
+           <Button variant="outline" size="sm">
+            <MessageSquare className="h-4 w-4 mr-1" /> Chat
           </Button>
-        </Link>
+          <Link href={`/instructors/${instructor.id}`}>
+            <Button variant="outline" size="sm">
+              View Profile <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </Link>
+        </div>
       </CardFooter>
     </Card>
   );
