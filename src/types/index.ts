@@ -1,4 +1,5 @@
 
+
 export interface Certification {
   name: string;
   issuedDate?: string; 
@@ -6,10 +7,12 @@ export interface Certification {
   isCurrent?: boolean; 
 }
 
+export type UserRole = 'Instructor' | 'TrainingSiteCoordinator' | 'TrainingCenterCoordinator';
+
 export interface Instructor {
   id: string;
   name: string;
-  instructorId: string;
+  instructorId: string; // Official ID number for the instructor
   status: 'Active' | 'Inactive' | 'Pending';
   phoneNumber: string;
   mailingAddress: string;
@@ -21,9 +24,11 @@ export interface Instructor {
     pals?: Certification;
   };
   isTrainingFaculty: boolean;
-  supervisor?: string;
+  supervisor?: string; // Name of the supervisor (could be TCC or TSC)
   profilePictureUrl?: string;
   uploadedDocuments?: PersonalDocument[];
+  role: UserRole;
+  managedByInstructorId?: string; // ID of the TrainingSiteCoordinator or TrainingCenterCoordinator who manages this instructor
 }
 
 export interface Course {

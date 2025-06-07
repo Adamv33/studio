@@ -1,14 +1,39 @@
-import type { Instructor, Course, CurriculumDocument, PersonalDocument } from '@/types';
+
+import type { Instructor, Course, CurriculumDocument, PersonalDocument, UserRole } from '@/types';
+
+// Let's define a Training Center Coordinator
+const trainingCenterCoordinatorId = 'instr_tcc_001';
 
 export const mockInstructors: Instructor[] = [
   {
+    id: trainingCenterCoordinatorId,
+    name: 'Dr. Alan Grant (TCC)',
+    instructorId: 'AG0000',
+    status: 'Active',
+    phoneNumber: '555-0000',
+    mailingAddress: '1 EMskillz HQ, Innovation Park, USA',
+    emailAddress: 'alan.grant.tcc@example.com',
+    certifications: {
+      bls: { name: 'BLS', expiryDate: '2026-01-01', issuedDate: '2024-01-01', isCurrent: true },
+      acls: { name: 'ACLS', expiryDate: '2026-01-01', issuedDate: '2024-01-01', isCurrent: true },
+    },
+    isTrainingFaculty: true,
+    supervisor: 'EMskillz LLC Board', // Ultimate supervisor
+    profilePictureUrl: 'https://placehold.co/100x100.png',
+    role: 'TrainingCenterCoordinator',
+    // managedByInstructorId: undefined, // TCC is top-level
+    uploadedDocuments: [
+       { id: 'doc_tcc_001', name: 'TCC_Credentials.pdf', type: 'other', uploadDate: '2024-01-05', instructorId: trainingCenterCoordinatorId, fileUrl: '#', size: '300KB' },
+    ]
+  },
+  {
     id: 'instr_001',
-    name: 'Dr. Emily Carter',
+    name: 'Dr. Emily Carter (TSC)',
     instructorId: 'EC1001',
     status: 'Active',
     phoneNumber: '555-0101',
     mailingAddress: '123 Health St, Wellness City, TX 77001',
-    emailAddress: 'emily.carter@example.com',
+    emailAddress: 'emily.carter.tsc@example.com',
     certifications: {
       heartsaver: { name: 'Heartsaver', expiryDate: '2025-08-15', issuedDate: '2023-08-15', isCurrent: true },
       bls: { name: 'BLS', expiryDate: '2025-06-20', issuedDate: '2023-06-20', isCurrent: true },
@@ -16,8 +41,10 @@ export const mockInstructors: Instructor[] = [
       pals: { name: 'PALS', expiryDate: '2025-02-10', issuedDate: '2023-02-10', isCurrent: true },
     },
     isTrainingFaculty: true,
-    supervisor: 'Dr. Alan Grant',
+    supervisor: 'Dr. Alan Grant (TCC)', // Supervised by TCC
     profilePictureUrl: 'https://placehold.co/100x100.png',
+    role: 'TrainingSiteCoordinator',
+    managedByInstructorId: trainingCenterCoordinatorId, // Managed by the TCC
     uploadedDocuments: [
       { id: 'doc_001', name: 'Resume_EC.pdf', type: 'resume', uploadDate: '2023-01-10', instructorId: 'instr_001', fileUrl: '#', size: '256KB' },
       { id: 'doc_002', name: 'BLS_Card_EC.pdf', type: 'certification_card', uploadDate: '2023-06-22', instructorId: 'instr_001', fileUrl: '#', size: '128KB' },
@@ -36,8 +63,10 @@ export const mockInstructors: Instructor[] = [
       bls: { name: 'BLS', expiryDate: '2025-01-25', issuedDate: '2023-01-25', isCurrent: true },
     },
     isTrainingFaculty: false,
-    supervisor: 'Dr. Emily Carter',
+    supervisor: 'Dr. Emily Carter (TSC)', // Supervised by TSC
     profilePictureUrl: 'https://placehold.co/100x100.png',
+    role: 'Instructor',
+    managedByInstructorId: 'instr_001', // Managed by Dr. Emily Carter (TSC)
      uploadedDocuments: [
       { id: 'doc_003', name: 'RenewalPacket_JL.pdf', type: 'renewal_packet', uploadDate: '2024-03-15', instructorId: 'instr_002', fileUrl: '#', size: '512KB' },
     ]
@@ -54,8 +83,10 @@ export const mockInstructors: Instructor[] = [
       bls: { name: 'BLS', expiryDate: '2023-05-10', issuedDate: '2021-05-10', isCurrent: false }, // Expired
     },
     isTrainingFaculty: true,
-    supervisor: 'Dr. Alan Grant',
+    supervisor: 'Dr. Emily Carter (TSC)', // Also supervised by TSC
     profilePictureUrl: 'https://placehold.co/100x100.png',
+    role: 'Instructor',
+    managedByInstructorId: 'instr_001', // Managed by Dr. Emily Carter (TSC)
   },
 ];
 
@@ -68,8 +99,8 @@ export const mockCourses: Course[] = [
     studentLastName: 'Smith',
     studentEmail: 'alice.smith@example.com',
     studentPhone: '555-0201',
-    instructorId: 'instr_001',
-    instructorName: 'Dr. Emily Carter',
+    instructorId: 'instr_002', // Johnathan Lee (Instructor)
+    instructorName: 'Johnathan Lee',
     trainingLocationAddress: '10 Life Saving Dr, Wellness City, TX',
     courseType: 'BLS',
   },
@@ -81,7 +112,7 @@ export const mockCourses: Course[] = [
     studentLastName: 'Johnson',
     studentEmail: 'bob.johnson@example.com',
     studentPhone: '555-0202',
-    instructorId: 'instr_002',
+    instructorId: 'instr_002', // Johnathan Lee (Instructor)
     instructorName: 'Johnathan Lee',
     trainingLocationAddress: '20 Health First Rd, Medville, CA',
     courseType: 'Heartsaver',
@@ -94,8 +125,8 @@ export const mockCourses: Course[] = [
     studentLastName: 'Williams',
     studentEmail: 'carol.w@example.com',
     studentPhone: '555-0203',
-    instructorId: 'instr_001',
-    instructorName: 'Dr. Emily Carter',
+    instructorId: 'instr_001', // Dr. Emily Carter (TSC)
+    instructorName: 'Dr. Emily Carter (TSC)',
     trainingLocationAddress: '10 Life Saving Dr, Wellness City, TX',
     courseType: 'ACLS',
   },
@@ -107,8 +138,8 @@ export const mockCourses: Course[] = [
     studentLastName: 'Brown',
     studentEmail: 'david.brown@example.com',
     studentPhone: '555-0204',
-    instructorId: 'instr_001',
-    instructorName: 'Dr. Emily Carter',
+    instructorId: 'instr_001', // Dr. Emily Carter (TSC)
+    instructorName: 'Dr. Emily Carter (TSC)',
     trainingLocationAddress: 'Community Center, Wellness City, TX',
     courseType: 'BLS',
   },
