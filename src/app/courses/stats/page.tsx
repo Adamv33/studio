@@ -1,3 +1,4 @@
+
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -5,26 +6,13 @@ import { mockCourses, mockInstructors } from '@/data/mockData';
 import type { Course, Instructor } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { ChartConfig, ChartContainer, ChartTooltipContent } from "@/components/ui/chart"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface CourseStats {
   totalCourses: number;
   coursesByYear: { year: string; count: number }[];
   coursesByType: { type: string; count: number }[];
 }
-
-const chartColors = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
-
-const courseTypes: Course['courseType'][] = ['Heartsaver', 'BLS', 'ACLS', 'PALS', 'Other'];
-const chartConfig = courseTypes.reduce((acc, type, index) => {
-  acc[type.toLowerCase()] = {
-    label: type,
-    color: chartColors[index % chartColors.length],
-  };
-  return acc;
-}, {} as ChartConfig);
-
 
 export default function CourseStatsPage() {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -58,10 +46,11 @@ export default function CourseStatsPage() {
 
     stats.coursesByYear = Object.entries(yearCounts)
       .map(([year, count]) => ({ year, count }))
-      .sort((a, b) => parseInt(a.year) - parseInt(b.year));
+      .sort((a, b) => parseInt(b.year) - parseInt(a.year)); // Sort by year descending
       
     stats.coursesByType = Object.entries(typeCounts)
-      .map(([type, count]) => ({ type, count }));
+      .map(([type, count]) => ({ type, count }))
+      .sort((a,b) => b.count - a.count); // Sort by count descending
 
     return stats;
   }, [courses, selectedInstructorId]);
@@ -78,8 +67,9 @@ export default function CourseStatsPage() {
       />
 
       <div className="mb-6">
+        <Label htmlFor="instructor-select" className="sr-only">Select Instructor</Label>
         <Select value={selectedInstructorId} onValueChange={setSelectedInstructorId}>
-          <SelectTrigger className="w-full md:w-[280px]">
+          <SelectTrigger id="instructor-select" className="w-full md:w-[280px]">
             <SelectValue placeholder="Select Instructor" />
           </SelectTrigger>
           <SelectContent>
@@ -93,7 +83,7 @@ export default function CourseStatsPage() {
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="mb-8">
         <Card>
           <CardHeader>
             <CardTitle>Total Courses Taught</CardTitle>
@@ -108,23 +98,28 @@ export default function CourseStatsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Courses by Year</CardTitle>
+            <CardDescription>Number of courses taught each year.</CardDescription>
           </CardHeader>
           <CardContent>
             {instructorStats.coursesByYear.length > 0 ? (
-              <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={instructorStats.coursesByYear} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="year" />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip content={<ChartTooltipContent />} />
-                    <Legend />
-                    <Bar dataKey="count" fill="var(--color-primary)" radius={[4, 4, 0, 0]} name="Courses" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartContainer>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Year</TableHead>
+                    <TableHead className="text-right">Courses</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {instructorStats.coursesByYear.map((item) => (
+                    <TableRow key={item.year}>
+                      <TableCell className="font-medium">{item.year}</TableCell>
+                      <TableCell className="text-right">{item.count}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             ) : (
-              <p className="text-muted-foreground text-center py-4">No course data for this year range.</p>
+              <p className="text-muted-foreground text-center py-4">No course data for this selection.</p>
             )}
           </CardContent>
         </Card>
@@ -132,33 +127,28 @@ export default function CourseStatsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Courses by Type</CardTitle>
+            <CardDescription>Number of courses taught for each type.</CardDescription>
           </CardHeader>
           <CardContent>
             {instructorStats.coursesByType.length > 0 ? (
-             <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Tooltip content={<ChartTooltipContent nameKey="type" />} />
-                    <Pie
-                      data={instructorStats.coursesByType}
-                      dataKey="count"
-                      nameKey="type"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={100}
-                      labelLine={false}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {instructorStats.coursesByType.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={chartConfig[entry.type.toLowerCase()]?.color || chartColors[index % chartColors.length]} />
-                      ))}
-                    </Pie>
-                     <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </ChartContainer>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Course Type</TableHead>
+                    <TableHead className="text-right">Courses</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {instructorStats.coursesByType.map((item) => (
+                    <TableRow key={item.type}>
+                      <TableCell className="font-medium">{item.type}</TableCell>
+                      <TableCell className="text-right">{item.count}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             ) : (
-               <p className="text-muted-foreground text-center py-4">No course data by type.</p>
+               <p className="text-muted-foreground text-center py-4">No course data by type for this selection.</p>
             )}
           </CardContent>
         </Card>
@@ -166,3 +156,5 @@ export default function CourseStatsPage() {
     </div>
   );
 }
+
+    
