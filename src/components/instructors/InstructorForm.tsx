@@ -44,6 +44,7 @@ interface InstructorFormProps {
 }
 
 const certificationTypes: Array<keyof NonNullable<Instructor['certifications']>> = ['heartsaver', 'bls', 'acls', 'pals'];
+const NO_SUPERVISOR_VALUE = "_none_"; // Special value for "None" option
 
 export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: InstructorFormProps) {
   const { register, handleSubmit, control, formState: { errors }, watch, setValue } = useForm<InstructorFormData>({
@@ -62,7 +63,7 @@ export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: 
         pals: initialData?.certifications?.pals || { name: 'PALS' },
       },
       isTrainingFaculty: initialData?.isTrainingFaculty || false,
-      supervisor: initialData?.supervisor || '',
+      supervisor: initialData?.supervisor || '', // Form state uses '' for no supervisor
       profilePictureUrl: initialData?.profilePictureUrl || '',
     },
   });
@@ -89,9 +90,13 @@ export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: 
   };
 
   const processSubmit = (data: InstructorFormData) => {
+    // Convert special "_none_" value back to an empty string for data storage
+    const supervisorValue = data.supervisor === NO_SUPERVISOR_VALUE ? '' : data.supervisor;
+
     const completeData: Instructor = {
       ...initialData, // spread initial data to keep id and other non-form fields
       ...data, // spread form data
+      supervisor: supervisorValue,
       id: initialData?.id || `instr_${Date.now()}`,
       profilePictureUrl: imagePreview || data.profilePictureUrl || '', // Ensure preview is prioritized if set
       uploadedDocuments: initialData?.uploadedDocuments || [], // Preserve existing documents
@@ -105,7 +110,7 @@ export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: 
     <form onSubmit={handleSubmit(processSubmit)} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-1 space-y-2">
-            <Label htmlFor="profilePicture">Profile Picture</Label>
+            <Label htmlFor="profilePictureFile">Profile Picture</Label>
             {imagePreview && (
                 <Image
                 src={imagePreview}
@@ -114,6 +119,7 @@ export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: 
                 height={120}
                 className="rounded-lg border object-cover shadow-sm mb-2"
                 data-ai-hint="profile avatar"
+                unoptimized={imagePreview.startsWith('blob:')}
                 />
             )}
             <Input id="profilePictureFile" type="file" accept="image/*" onChange={handleImageChange} />
@@ -139,7 +145,7 @@ export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: 
                 name="status"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
@@ -268,12 +274,16 @@ export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: 
             name="supervisor"
             control={control}
             render={({ field }) => (
-              <Select onValueChange={field.onChange} defaultValue={field.value || ''}>
+              <Select
+                onValueChange={field.onChange}
+                // If form state for supervisor is '', map to NO_SUPERVISOR_VALUE for Select
+                value={field.value === '' ? NO_SUPERVISOR_VALUE : field.value}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select supervisor" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value={NO_SUPERVISOR_VALUE}>None</SelectItem>
                   {potentialSupervisors.map(sup => (
                     <SelectItem key={sup.id} value={sup.name}>{sup.name}</SelectItem>
                   ))}
