@@ -56,7 +56,7 @@ export default function DeploymentGuidePage(): JSX.Element {
                 </li>
                 <li>
                   <strong>Enable App Hosting (if not enabled):</strong>
-                   Navigate to "Build" > "App Hosting" in the Firebase Console. If it's your first time, you might need to click "Get started" and follow any prompts to enable it for your project.
+                   Navigate to "Build" &gt; "App Hosting" in the Firebase Console. If it's your first time, you might need to click "Get started" and follow any prompts to enable it for your project.
                 </li>
                  <li>
                   <strong>Billing Account:</strong> Firebase App Hosting (and Google Cloud services like Genkit's AI models) requires your Firebase project to be on the "Blaze (pay as you go)" plan and linked to a Google Cloud billing account. Ensure this is set up in your Firebase project settings.
@@ -207,5 +207,3 @@ export default function DeploymentGuidePage(): JSX.Element {
     </div>
   );
 }
-
-    
