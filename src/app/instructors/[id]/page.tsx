@@ -78,10 +78,10 @@ const PersonalDocumentsSection: React.FC<{ instructor: Instructor, onDocumentsCh
   ), [documents, searchTerm]);
 
   useEffect(() => {
-    if (instructor.uploadedDocuments && JSON.stringify(instructor.uploadedDocuments) !== JSON.stringify(documents)) {
-        setDocuments(instructor.uploadedDocuments);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Sync local 'documents' state if the prop 'instructor.uploadedDocuments' changes.
+    // This relies on the parent component passing a new array instance for instructor.uploadedDocuments
+    // when the data has actually changed.
+    setDocuments(instructor.uploadedDocuments || []);
   }, [instructor.uploadedDocuments]);
 
 
@@ -155,7 +155,9 @@ export default function InstructorProfilePage() {
   useEffect(() => {
     const foundInstructor = mockInstructors.find(instr => instr.id === id);
     if (foundInstructor) {
-      setInstructor(foundInstructor);
+      // Ensure we're setting a new object if we want to clone, or use as is if it's from "global" mock.
+      // For this setup, using as is initially is fine, updates will create new objects.
+      setInstructor(foundInstructor); 
       const coursesTaught = mockCourses.filter(course => course.instructorId === id);
       setInstructorCourses(coursesTaught);
     } else {
@@ -168,10 +170,17 @@ export default function InstructorProfilePage() {
   const handleFormSubmit = useCallback((data: Instructor) => {
     setInstructor(prevInstructor => {
       if (!prevInstructor) return null; 
-      const updatedInstructor = { ...prevInstructor, ...data };
+      // Create a new instructor object for the state update
+      const updatedInstructor = { ...prevInstructor, ...data, uploadedDocuments: prevInstructor.uploadedDocuments || [] };
+      
+      // Update the mockInstructors array immutably for "global" changes
       const index = mockInstructors.findIndex(i => i.id === id);
-      if (index !== -1) mockInstructors[index] = updatedInstructor; 
-      return updatedInstructor;
+      if (index !== -1) {
+        // This direct mutation can be problematic if other components don't re-fetch or re-evaluate mockInstructors
+        // For a more robust solution, a state management library or context would be needed.
+        mockInstructors[index] = updatedInstructor; 
+      }
+      return updatedInstructor; // Return the new state for the current page
     });
     
     toast({
@@ -187,6 +196,7 @@ export default function InstructorProfilePage() {
             const updatedInstructorData = { ...prevInstructor, uploadedDocuments: updatedDocs };
             const index = mockInstructors.findIndex(i => i.id === prevInstructor.id);
             if (index !== -1) {
+                // Same note as above about direct mutation of mockInstructors
                 mockInstructors[index] = updatedInstructorData; 
             }
             return updatedInstructorData;
@@ -268,7 +278,7 @@ export default function InstructorProfilePage() {
                 <div className="md:col-span-2">
                   <h4 className="font-semibold mb-3 text-primary flex items-center"><Award className="mr-2 h-5 w-5"/>Certifications</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {Object.entries(instructor.certifications).map(([key, cert]) => (
+                    {instructor.certifications && Object.entries(instructor.certifications).map(([key, cert]) => (
                       <Card key={key} className="p-3 bg-muted/30">
                         <CardHeader className="p-0 pb-1">
                            <CardTitle className="text-sm font-semibold capitalize flex items-center"><ShieldCheck className="mr-1.5 h-4 w-4 text-accent"/>{cert?.name || key}</CardTitle>
@@ -318,3 +328,5 @@ export default function InstructorProfilePage() {
     </div>
   );
 }
+
+    
