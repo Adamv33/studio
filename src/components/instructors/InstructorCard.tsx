@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { mockInstructors } from '@/data/mockData'; // Added import
 
 interface InstructorCardProps {
   instructor: Instructor;
@@ -89,7 +90,7 @@ export const InstructorCard = memo(function InstructorCard({ instructor, onDelet
         </AlertDialog>
         <div className="flex gap-2">
            <Link href={`/chat?with=${instructor.id}`} passHref>
-            <Button variant="outline" size="sm" disabled={instructor.id === mockInstructors[0]?.id}> {/* Disable chat with self for the primary user */}
+            <Button variant="outline" size="sm" disabled={mockInstructors.length > 0 && instructor.id === mockInstructors[0]?.id}> {/* Disable chat with self for the primary user */}
               <MessageSquare className="h-4 w-4 mr-1" /> Chat
             </Button>
            </Link>
