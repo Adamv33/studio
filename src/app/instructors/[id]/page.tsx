@@ -50,15 +50,15 @@ const PersonalDocumentsSection: React.FC<{ instructor: Instructor, onDocumentsCh
       const newDocument: PersonalDocument = {
         id: `doc_${Date.now()}`,
         name: file.name,
-        type: file.name.endsWith('.pdf') ? 'certification_card' : file.name.endsWith('.docx') ? 'resume' : 'other', // Basic type inference
+        type: file.name.endsWith('.pdf') ? 'certification_card' : file.name.endsWith('.docx') || file.name.endsWith('.doc') ? 'resume' : file.name.toLowerCase().includes('packet') || file.name.toLowerCase().includes('renewal') ? 'renewal_packet' : 'other',
         uploadDate: new Date().toISOString().split('T')[0],
         instructorId: instructor.id,
-        fileUrl: URL.createObjectURL(file), // Placeholder for actual URL
+        fileUrl: URL.createObjectURL(file), 
         size: `${(file.size / 1024).toFixed(1)}KB`
       };
       const updatedDocs = [...documents, newDocument];
       setDocuments(updatedDocs);
-      onDocumentsChange(updatedDocs); // Propagate change up
+      onDocumentsChange(updatedDocs); 
       toast({ title: "Document Uploaded", description: `${file.name} uploaded successfully.` });
     }
   };
@@ -71,7 +71,8 @@ const PersonalDocumentsSection: React.FC<{ instructor: Instructor, onDocumentsCh
   };
 
   const filteredDocuments = documents.filter(doc =>
-    doc.name.toLowerCase().includes(searchTerm.toLowerCase())
+    doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    doc.type.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -81,39 +82,40 @@ const PersonalDocumentsSection: React.FC<{ instructor: Instructor, onDocumentsCh
         <CardDescription>Manage renewal packets, certification cards, and resumes.</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="mb-4 flex gap-2">
+        <div className="mb-4 flex flex-col sm:flex-row gap-2">
           <div className="relative flex-grow">
-            <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Search documents (AI search placeholder)..."
+              placeholder="Search documents by name or type..."
               className="pl-8 w-full"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Button asChild variant="outline">
-            <Label htmlFor={`file-upload-${instructor.id}`} className="cursor-pointer">
-              <UploadCloud className="mr-2 h-4 w-4" /> Upload
+          <Button asChild variant="outline" className="w-full sm:w-auto">
+            <Label htmlFor={`file-upload-${instructor.id}`} className="cursor-pointer flex items-center justify-center">
+              <UploadCloud className="mr-2 h-4 w-4" /> Upload Document
               <Input id={`file-upload-${instructor.id}`} type="file" className="sr-only" onChange={handleFileUpload} />
             </Label>
           </Button>
         </div>
         {filteredDocuments.length > 0 ? (
-          <ScrollArea className="h-[200px] pr-3">
-            <ul className="space-y-2">
+          <ScrollArea className="h-[250px] pr-3">
+            <ul className="space-y-3">
               {filteredDocuments.map(doc => (
-                <li key={doc.id} className="flex items-center justify-between p-2 border rounded-md hover:bg-muted/50">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-primary" />
-                    <div>
-                      <p className="font-medium text-sm">{doc.name}</p>
+                <li key={doc.id} className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-6 w-6 text-primary flex-shrink-0" />
+                    <div className="flex-grow min-w-0">
+                      <p className="font-medium text-sm truncate" title={doc.name}>{doc.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        Type: <span className="capitalize">{doc.type.replace('_', ' ')}</span> | Uploaded: {format(new Date(doc.uploadDate), "MMM d, yyyy")} | Size: {doc.size}
+                        Type: <span className="capitalize">{doc.type.replace('_', ' ')}</span> | Uploaded: {format(new Date(doc.uploadDate), "MMM d, yyyy")}
                       </p>
+                       <p className="text-xs text-muted-foreground">Size: {doc.size}</p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDeleteDocument(doc.id)}>
+                  <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full" onClick={() => handleDeleteDocument(doc.id)} aria-label={`Delete document ${doc.name}`}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </li>
@@ -121,7 +123,7 @@ const PersonalDocumentsSection: React.FC<{ instructor: Instructor, onDocumentsCh
             </ul>
           </ScrollArea>
         ) : (
-          <p className="text-sm text-muted-foreground text-center py-4">No documents uploaded or found.</p>
+          <p className="text-sm text-muted-foreground text-center py-6">No documents uploaded or found matching your search.</p>
         )}
       </CardContent>
     </Card>
@@ -146,7 +148,6 @@ export default function InstructorProfilePage() {
       const coursesTaught = mockCourses.filter(course => course.instructorId === id);
       setInstructorCourses(coursesTaught);
     } else {
-      // Handle not found, maybe redirect or show error
       router.push('/instructors');
     }
   }, [id, router]);
@@ -158,10 +159,8 @@ export default function InstructorProfilePage() {
   const handleEditToggle = () => setIsEditing(!isEditing);
 
   const handleFormSubmit = (data: Instructor) => {
-    // Update mock data or state management
     const updatedInstructor = { ...instructor, ...data };
     setInstructor(updatedInstructor);
-    // Find and update in the main mockInstructors array for persistence in this demo
     const index = mockInstructors.findIndex(i => i.id === id);
     if (index !== -1) mockInstructors[index] = updatedInstructor;
     
@@ -176,7 +175,6 @@ export default function InstructorProfilePage() {
     if (instructor) {
         const updatedInstructorData = { ...instructor, uploadedDocuments: updatedDocs };
         setInstructor(updatedInstructorData);
-        // Update mockInstructors array
         const index = mockInstructors.findIndex(i => i.id === instructor.id);
         if (index !== -1) {
             mockInstructors[index] = updatedInstructorData;
@@ -303,3 +301,5 @@ export default function InstructorProfilePage() {
     </div>
   );
 }
+
+    
