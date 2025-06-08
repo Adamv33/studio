@@ -1,5 +1,5 @@
 
-import React, { memo } from 'react'; 
+import React, { memo, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Instructor } from '@/types';
@@ -33,6 +33,10 @@ const StatusIcon = memo(({ status }: { status: Instructor['status'] }) => {
 StatusIcon.displayName = 'StatusIcon';
 
 export const InstructorCard = memo(function InstructorCard({ instructor, onDelete }: InstructorCardProps) {
+  const handleDelete = useCallback(() => {
+    onDelete(instructor.id);
+  }, [instructor.id, onDelete]);
+
   return (
     <Card className="flex flex-col h-full shadow-md hover:shadow-lg transition-shadow duration-200">
       <CardHeader className="flex flex-row items-start gap-4 space-y-0 p-4">
@@ -47,8 +51,8 @@ export const InstructorCard = memo(function InstructorCard({ instructor, onDelet
         <div className="flex-1">
           <CardTitle className="text-lg font-headline">{instructor.name}</CardTitle>
           <CardDescription className="text-sm">ID: {instructor.instructorId}</CardDescription>
-          <Badge 
-            variant={instructor.status === 'Active' ? 'default' : instructor.status === 'Pending' ? 'secondary': 'destructive'} 
+          <Badge
+            variant={instructor.status === 'Active' ? 'default' : instructor.status === 'Pending' ? 'secondary': 'destructive'}
             className="mt-1 text-xs py-0.5 px-2 capitalize"
           >
             <StatusIcon status={instructor.status} /> <span className="ml-1">{instructor.status}</span>
@@ -77,15 +81,15 @@ export const InstructorCard = memo(function InstructorCard({ instructor, onDelet
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => onDelete(instructor.id)} className="bg-destructive hover:bg-destructive/90">
+              <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
                 Delete
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
         <div className="flex gap-2">
-           <Link href="/chat" passHref>
-            <Button variant="outline" size="sm">
+           <Link href={`/chat?with=${instructor.id}`} passHref>
+            <Button variant="outline" size="sm" disabled={instructor.id === mockInstructors[0]?.id}> {/* Disable chat with self for the primary user */}
               <MessageSquare className="h-4 w-4 mr-1" /> Chat
             </Button>
            </Link>
