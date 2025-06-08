@@ -25,12 +25,15 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { generateCourseDescription } from '@/ai/flows/generate-course-description-flow';
 
+const availableCourseTypes: Course['courseType'][] = ['Heartsaver', 'BLS', 'ACLS', 'PALS', 'Other'];
+
 export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [pastedData, setPastedData] = useState('');
   const [batchInstructorId, setBatchInstructorId] = useState<string>('');
   const [batchTrainingAddress, setBatchTrainingAddress] = useState<string>('');
+  const [batchCourseType, setBatchCourseType] = useState<Course['courseType']>('Other');
   const [isAddCourseDialogOpen, setIsAddCourseDialogOpen] = useState(false);
   const [isGeneratingDescriptions, setIsGeneratingDescriptions] = useState(false);
   const { toast } = useToast();
@@ -69,6 +72,10 @@ export default function CoursesPage() {
         toast({ title: "Missing Address", description: "Please enter a training location address for this batch.", variant: "destructive" });
         return;
     }
+     if (!batchCourseType) {
+        toast({ title: "Missing Course Type", description: "Please select a course type for this batch.", variant: "destructive" });
+        return;
+    }
 
     const lines = pastedData.trim().split('\n');
     let coursesSuccessfullyParsed = 0;
@@ -99,7 +106,7 @@ export default function CoursesPage() {
         instructorId: batchInstructorId,
         instructorName: selectedInstructor.name,
         trainingLocationAddress: batchTrainingAddress,
-        courseType: 'Other', 
+        courseType: batchCourseType, 
       };
     }).filter(course => course !== null && course.eCardCode) as Omit<Course, 'description'>[];
 
@@ -131,6 +138,9 @@ export default function CoursesPage() {
       setCourses(prev => [...newCoursesWithDescriptions, ...prev]);
       toast({ title: "Courses Added", description: `${newCoursesWithDescriptions.length} courses added with AI-generated descriptions.` });
       setPastedData('');
+      // setBatchInstructorId(instructors.length > 0 ? instructors[0].id : ''); // Keep instructor selected
+      // setBatchTrainingAddress(''); // Keep address
+      // setBatchCourseType('Other'); // Reset course type for next batch or keep selected? For now, reset.
       setIsAddCourseDialogOpen(false);
     } else if (lines.length > 0 && coursesSuccessfullyParsed === 0) {
         toast({ title: "Parsing Failed", description: "No courses were added. Ensure data is tab-separated with 6 columns.", variant: "destructive" });
@@ -142,10 +152,16 @@ export default function CoursesPage() {
   };
 
   useEffect(() => {
-    if (isAddCourseDialogOpen && instructors.length > 0 && !batchInstructorId) {
-      setBatchInstructorId(instructors[0].id);
+    if (isAddCourseDialogOpen) {
+      if (instructors.length > 0 && !batchInstructorId) {
+        setBatchInstructorId(instructors[0].id);
+      }
+      // If batchCourseType is not set or dialog reopens, default it.
+      if (!batchCourseType) {
+        setBatchCourseType('Other');
+      }
     }
-  }, [isAddCourseDialogOpen, instructors, batchInstructorId]);
+  }, [isAddCourseDialogOpen, instructors, batchInstructorId, batchCourseType]);
 
 
   return (
@@ -158,9 +174,14 @@ export default function CoursesPage() {
                 setIsAddCourseDialogOpen(isOpen);
                 if (!isOpen) { 
                     setPastedData('');
+                    // Optionally reset other batch fields here if desired when dialog closes
+                    // setBatchCourseType('Other');
                 } else {
                     if (instructors.length > 0 && !batchInstructorId) {
                         setBatchInstructorId(instructors[0].id);
+                    }
+                    if (!batchCourseType) {
+                         setBatchCourseType('Other');
                     }
                 }
             }}>
@@ -173,8 +194,7 @@ export default function CoursesPage() {
                         <DialogDescription>
                             Paste student roster data from your spreadsheet (tab-separated). Each line represents one student.
                             Expected columns: eCard Code, Course Date (YYYY-MM-DD), Student First Name, Student Last Name, Student Email, Student Phone.
-                            The system will set a default course type of 'Other' and AI will attempt to generate a description.
-                            Select an instructor and enter the training address for this entire batch.
+                            Select the course type, instructor, and enter the training address for this entire batch. AI will attempt to generate descriptions.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-2">
@@ -188,6 +208,19 @@ export default function CoursesPage() {
                               rows={8}
                               className="my-1"
                             />
+                        </div>
+                        <div>
+                            <Label htmlFor="batchCourseType">Course Type for this Batch</Label>
+                            <Select value={batchCourseType} onValueChange={(value) => setBatchCourseType(value as Course['courseType'])}>
+                                <SelectTrigger id="batchCourseType" className="my-1">
+                                    <SelectValue placeholder="Select course type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableCourseTypes.map(type => (
+                                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div>
                             <Label htmlFor="batchInstructor">Instructor for this Batch</Label>
@@ -236,3 +269,4 @@ export default function CoursesPage() {
     </div>
   );
 }
+
