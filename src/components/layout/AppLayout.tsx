@@ -10,13 +10,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <Sidebar variant="sidebar" collapsible="icon" className="border-r border-sidebar-border">
         <SidebarHeader className="p-4 flex items-center gap-2">
            <Logo className="w-8 h-8 text-sidebar-primary" />
-           <h1 className="font-headline text-xl font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">InstructorHub</h1>
+           <h1 className="font-headline text-xl font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">InstructPoint</h1>
         </SidebarHeader>
         <SidebarContent>
           <SidebarNav />
         </SidebarContent>
         <SidebarFooter className="p-4 group-data-[collapsible=icon]:hidden">
-          <p className="text-xs text-sidebar-foreground/70">&copy; {new Date().getFullYear()} InstructorHub</p>
+          <p className="text-xs text-sidebar-foreground/70">&copy; {new Date().getFullYear()} InstructPoint</p>
         </SidebarFooter>
       </Sidebar>
       <SidebarInset className="flex flex-col">

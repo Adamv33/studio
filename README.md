@@ -1,5 +1,5 @@
 
-# Firebase Studio
+# InstructPoint
 
 This is a NextJS starter in Firebase Studio.
 
@@ -16,4 +16,3 @@ For the application to store data permanently and function as a real-world tool,
 - **Cloud Storage for Firebase:** For file uploads like documents and images.
 
 The "Deploy App" page within the application contains a guide with steps on how to enable these services in your Firebase project console. After enabling them, the application code will need to be modified to interact with these services.
-```

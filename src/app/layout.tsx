@@ -4,7 +4,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'InstructorHub',
+  title: 'InstructPoint',
   description: 'Manage instructors, courses, and documents efficiently.',
 };
 

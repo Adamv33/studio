@@ -46,7 +46,7 @@ export default function DashboardPage() {
   return (
     <div className="container mx-auto py-2">
       <PageHeader
-        title="Welcome to InstructorHub"
+        title="Welcome to InstructPoint"
         description="Your central platform for managing instructors, courses, and educational materials."
       />
       
