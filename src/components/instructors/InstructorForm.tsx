@@ -25,10 +25,10 @@ const instructorSchema = z.object({
   mailingAddress: z.string().min(1, 'Mailing address is required'),
   emailAddress: z.string().email('Invalid email address'),
   certifications: z.object({
-    heartsaver: z.object({ name: z.literal('Heartsaver'), issuedDate: z.string().optional(), expiryDate: z.string().optional() }).optional(),
-    bls: z.object({ name: z.literal('BLS'), issuedDate: z.string().optional(), expiryDate: z.string().optional() }).optional(),
-    acls: z.object({ name: z.literal('ACLS'), issuedDate: z.string().optional(), expiryDate: z.string().optional() }).optional(),
-    pals: z.object({ name: z.literal('PALS'), issuedDate: z.string().optional(), expiryDate: z.string().optional() }).optional(),
+    heartsaver: z.object({ name: z.string(), issuedDate: z.string().optional(), expiryDate: z.string().optional() }).optional(),
+    bls: z.object({ name: z.string(), issuedDate: z.string().optional(), expiryDate: z.string().optional() }).optional(),
+    acls: z.object({ name: z.string(), issuedDate: z.string().optional(), expiryDate: z.string().optional() }).optional(),
+    pals: z.object({ name: z.string(), issuedDate: z.string().optional(), expiryDate: z.string().optional() }).optional(),
   }).optional(),
   isTrainingFaculty: z.boolean(),
   supervisor: z.string().optional(),
@@ -186,7 +186,7 @@ export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
         {certificationTypes.map((certType) => (
           <div key={certType} className="space-y-2 p-3 border rounded-md">
-            <h4 className="font-semibold capitalize">{certType}</h4>
+            <h4 className="font-semibold capitalize">{watchedCerts?.[certType]?.name || certType}</h4>
             <div>
               <Label htmlFor={`${certType}IssuedDate`}>Issued Date</Label>
               <Controller
@@ -249,6 +249,13 @@ export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: 
                 )}
               />
             </div>
+            {/* Hidden input to store the name, ensuring it's part of the form data if needed */}
+            <Controller
+                name={`certifications.${certType}.name`}
+                control={control}
+                defaultValue={certType.charAt(0).toUpperCase() + certType.slice(1)}
+                render={({ field }) => <input type="hidden" {...field} />}
+            />
           </div>
         ))}
       </div>
@@ -303,3 +310,4 @@ export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: 
     </form>
   );
 }
+
