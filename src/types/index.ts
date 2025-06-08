@@ -42,6 +42,7 @@ export interface Course {
   instructorName?: string; // For display
   trainingLocationAddress: string;
   courseType: 'Heartsaver' | 'BLS' | 'ACLS' | 'PALS' | 'Other';
+  description?: string; // AI-generated description
 }
 
 export interface CurriculumDocument {
