@@ -1,3 +1,4 @@
+
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -26,12 +27,12 @@ const CertificationDisplay: React.FC<{ cert?: { name: string; issuedDate?: strin
     <div className="text-sm">
       {cert.issuedDate && <p>Issued: {format(new Date(cert.issuedDate), "MMM d, yyyy")}</p>}
       {cert.expiryDate && (
-        <p className="flex items-center">
+        <div className="flex items-center">
           Expires: {format(new Date(cert.expiryDate), "MMM d, yyyy")}
           <Badge variant={badgeVariant} className="ml-2 px-1.5 py-0.5 text-xs">
             {isExpired ? "Expired" : "Current"}
           </Badge>
-        </p>
+        </div>
       )}
     </div>
   );
