@@ -32,6 +32,9 @@ const StatusIcon = ({ status }: { status: Instructor['status'] }) => {
 };
 
 export function InstructorCard({ instructor, onDelete }: InstructorCardProps) {
+  // Placeholder: In a real app, this would come from an authentication context
+  const isAdmin = false; 
+
   return (
     <Card className="flex flex-col h-full shadow-md hover:shadow-lg transition-shadow duration-200">
       <CardHeader className="flex flex-row items-start gap-4 space-y-0 p-4">
@@ -88,11 +91,13 @@ export function InstructorCard({ instructor, onDelete }: InstructorCardProps) {
            <Button variant="outline" size="sm">
             <MessageSquare className="h-4 w-4 mr-1" /> Chat
           </Button>
-          <Link href={`/instructors/${instructor.id}`}>
-            <Button variant="outline" size="sm">
-              View Profile <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          </Link>
+          {isAdmin && (
+            <Link href={`/instructors/${instructor.id}`}>
+              <Button variant="outline" size="sm">
+                View Profile <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </Link>
+          )}
         </div>
       </CardFooter>
     </Card>
