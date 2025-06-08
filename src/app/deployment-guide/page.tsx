@@ -3,34 +3,18 @@
 import React from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Rocket, CheckCircle, AlertTriangle, ExternalLink, HardDrive, Terminal, KeyRound, CloudCog } from 'lucide-react';
+import { Rocket, CheckCircle, AlertTriangle, ExternalLink, HardDrive, Terminal, KeyRound, CloudCog, Menu, Edit } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { cn } from "@/lib/utils";
 
-// Helper components defined as standard functions
+// Helper component
 function ImagePlaceholder({title, description}: {title: string, description: string}): JSX.Element {
   return (
     <div className="mt-2 p-3 border border-dashed rounded-md bg-muted/50">
       <p className="text-xs font-semibold text-foreground">{title}</p>
       <p className="text-xs text-muted-foreground">{description}</p>
     </div>
-  );
-}
-
-function HamburgerMenuIcon({className}: {className?: string}): JSX.Element {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("h-4 w-4", className)}>
-      <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"></path>
-    </svg>
-  );
-}
-
-function EditIcon({className}: {className?: string}): JSX.Element {
- return (
-   <svg viewBox="0 0 24 24" fill="currentColor" className={cn("h-4 w-4", className)}>
-      <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"></path>
-    </svg>
   );
 }
 
@@ -67,7 +51,7 @@ export default function DeploymentGuidePage(): JSX.Element {
                 </li>
                 <li>
                   <strong>Identify Your Project ID:</strong>
-                  In the Firebase Console, select your project. Your <strong>Project ID</strong> is usually displayed on the Project Overview page or in the URL (e.g., `console.firebase.google.com/project/<YOUR-PROJECT-ID>/overview`). You'll need this for linking.
+                  In the Firebase Console, select your project. Your <strong>Project ID</strong> is usually displayed on the Project Overview page or in the URL (e.g., `console.firebase.google.com/project/YOUR-PROJECT-ID/overview`). You'll need this for linking.
                   <ImagePlaceholder title="Firebase Project ID Location" description="Typically found in Project settings or near the project name on the overview page." />
                 </li>
                 <li>
@@ -126,7 +110,7 @@ export default function DeploymentGuidePage(): JSX.Element {
               <p className="text-sm text-muted-foreground">
                 Go to the <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google Cloud Console</a>.
                 Ensure you have selected the Google Cloud project that is linked to your Firebase project.
-                In the navigation menu (<HamburgerMenuIcon className="inline h-3 w-3" />), go to <Badge variant="outline">IAM & Admin</Badge> &gt; <Badge variant="outline">IAM</Badge>.
+                In the navigation menu (<Menu className="inline h-3 w-3" />), go to <Badge variant="outline">IAM & Admin</Badge> &gt; <Badge variant="outline">IAM</Badge>.
               </p>
             </div>
             <div>
@@ -143,10 +127,10 @@ export default function DeploymentGuidePage(): JSX.Element {
             <div>
               <h4 className="font-semibold">3. Grant "Vertex AI User" Role</h4>
               <p className="text-sm text-muted-foreground">
-                Click the pencil icon (<EditIcon className="inline h-3 w-3" />) next to that service account to edit its roles.
+                Click the pencil icon (<Edit className="inline h-3 w-3" />) next to that service account to edit its roles.
                 Click on <Badge variant="secondary">+ ADD ANOTHER ROLE</Badge>.
                 In the "Select a role" filter, type <code className="bg-muted px-1 py-0.5 rounded text-xs">Vertex AI User</code> and select it.
-                Click <Badge color="primary">SAVE</Badge>.
+                Click <Badge variant="default">SAVE</Badge>.
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 This role grants permissions to use Gemini models. It might take a few minutes for permissions to propagate.
@@ -223,3 +207,5 @@ export default function DeploymentGuidePage(): JSX.Element {
     </div>
   );
 }
+
+    
