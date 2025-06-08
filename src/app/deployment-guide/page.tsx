@@ -3,7 +3,7 @@
 import React from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Rocket, CheckCircle, AlertTriangle, ExternalLink, HardDrive, Terminal, KeyRound, CloudCog, Menu, Edit } from 'lucide-react';
+import { Rocket, CheckCircle, AlertTriangle, ExternalLink, HardDrive, Terminal, KeyRound, CloudCog, Menu, Edit, Database, CloudUpload } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { cn } from "@/lib/utils";
@@ -167,7 +167,54 @@ export default function DeploymentGuidePage(): JSX.Element {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center"><AlertTriangle className="mr-2 h-5 w-5 text-yellow-500" />Phase 4: Post-Deployment & Important Notes</CardTitle>
+            <CardTitle className="flex items-center"><Database className="mr-2 h-5 w-5 text-green-600" />Phase 4: Setting up Data Persistence (Recommended)</CardTitle>
+            <CardDescription>
+              For the app to save data permanently (instructor profiles, courses, uploaded documents), you need to enable Firebase backend services. Currently, the app uses temporary mock data.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h4 className="font-semibold flex items-center"><Database className="mr-2 h-4 w-4" />1. Enable Cloud Firestore</h4>
+              <p className="text-sm text-muted-foreground">Firestore will store structured data like instructor profiles and course information.</p>
+              <ol className="list-decimal pl-5 mt-1 space-y-1 text-xs text-muted-foreground">
+                <li>Go to the <a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Firebase Console</a> and select your project.</li>
+                <li>In the left navigation, click "Build" &gt; "Firestore Database".</li>
+                <li>Click "Create database".</li>
+                <li>
+                  Choose security rules:
+                  <ul className="list-disc pl-5 mt-1">
+                    <li><strong>Production mode:</strong> Recommended. Starts with data locked down. You'll define access rules later.</li>
+                    <li><strong>Test mode:</strong> Allows open access for 30 days. Easier for quick testing, but remember to secure it.</li>
+                  </ul>
+                </li>
+                <li>Click "Next".</li>
+                <li>Select a Cloud Firestore location (this cannot be changed later).</li>
+                <li>Click "Enable".</li>
+              </ol>
+            </div>
+            <div>
+              <h4 className="font-semibold flex items-center"><CloudUpload className="mr-2 h-4 w-4" />2. Enable Cloud Storage for Firebase</h4>
+              <p className="text-sm text-muted-foreground">Cloud Storage will store files like uploaded documents and profile pictures.</p>
+              <ol className="list-decimal pl-5 mt-1 space-y-1 text-xs text-muted-foreground">
+                <li>In the Firebase Console, under "Build", click "Storage".</li>
+                <li>Click "Get started".</li>
+                <li>Review the security rules information and click "Next". (Default rules are often fine to start for authenticated users).</li>
+                <li>Confirm the Cloud Storage location (usually pre-selected, cannot be changed later).</li>
+                <li>Click "Done".</li>
+              </ol>
+            </div>
+            <div>
+              <h4 className="font-semibold">Next Steps for Application Code</h4>
+              <p className="text-sm text-muted-foreground">
+                After enabling these services, the application code will need to be modified to use Firestore and Cloud Storage instead of the current mock data. This involves writing code to read/write data and files. This can be addressed in future development steps.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center"><AlertTriangle className="mr-2 h-5 w-5 text-yellow-500" />Phase 5: Post-Deployment & Important Notes</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -207,3 +254,5 @@ export default function DeploymentGuidePage(): JSX.Element {
     </div>
   );
 }
+
+    
