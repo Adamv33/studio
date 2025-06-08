@@ -78,9 +78,6 @@ const PersonalDocumentsSection: React.FC<{ instructor: Instructor, onDocumentsCh
   ), [documents, searchTerm]);
 
   useEffect(() => {
-    // Sync local 'documents' state if the prop 'instructor.uploadedDocuments' changes.
-    // This relies on the parent component passing a new array instance for instructor.uploadedDocuments
-    // when the data has actually changed.
     setDocuments(instructor.uploadedDocuments || []);
   }, [instructor.uploadedDocuments]);
 
@@ -125,9 +122,18 @@ const PersonalDocumentsSection: React.FC<{ instructor: Instructor, onDocumentsCh
                        <p className="text-xs text-muted-foreground">Size: {doc.size}</p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full" onClick={() => handleDeleteDocument(doc.id)} aria-label={`Delete document ${doc.name}`}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                   <div className="flex items-center gap-1">
+                     {doc.fileUrl && doc.fileUrl.startsWith('blob:') && (
+                        <Button variant="ghost" size="sm" asChild>
+                           <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" download={doc.name}>
+                             View
+                           </a>
+                        </Button>
+                     )}
+                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full" onClick={() => handleDeleteDocument(doc.id)} aria-label={`Delete document ${doc.name}`}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -155,8 +161,6 @@ export default function InstructorProfilePage() {
   useEffect(() => {
     const foundInstructor = mockInstructors.find(instr => instr.id === id);
     if (foundInstructor) {
-      // Ensure we're setting a new object if we want to clone, or use as is if it's from "global" mock.
-      // For this setup, using as is initially is fine, updates will create new objects.
       setInstructor(foundInstructor); 
       const coursesTaught = mockCourses.filter(course => course.instructorId === id);
       setInstructorCourses(coursesTaught);
@@ -165,22 +169,30 @@ export default function InstructorProfilePage() {
     }
   }, [id, router]);
 
+  const potentialSupervisors = useMemo(() => {
+    return mockInstructors
+      .filter(instr => (instr.role === 'TrainingCenterCoordinator' || instr.role === 'TrainingSiteCoordinator') && instr.id !== id)
+      .map(instr => ({ id: instr.id, name: instr.name }));
+  }, [id]);
+
   const handleEditToggle = useCallback(() => setIsEditing(prev => !prev), []);
 
   const handleFormSubmit = useCallback((data: Instructor) => {
+    // Revoke old blob URL if it exists and a new one is provided or if it's cleared
+    if (instructor?.profilePictureUrl && instructor.profilePictureUrl.startsWith('blob:') &&
+        (!data.profilePictureUrl || data.profilePictureUrl !== instructor.profilePictureUrl)) {
+      URL.revokeObjectURL(instructor.profilePictureUrl);
+    }
+    
     setInstructor(prevInstructor => {
       if (!prevInstructor) return null; 
-      // Create a new instructor object for the state update
-      const updatedInstructor = { ...prevInstructor, ...data, uploadedDocuments: prevInstructor.uploadedDocuments || [] };
+      const updatedInstructor = { ...prevInstructor, ...data }; // data from form includes profilePictureUrl
       
-      // Update the mockInstructors array immutably for "global" changes
       const index = mockInstructors.findIndex(i => i.id === id);
       if (index !== -1) {
-        // This direct mutation can be problematic if other components don't re-fetch or re-evaluate mockInstructors
-        // For a more robust solution, a state management library or context would be needed.
         mockInstructors[index] = updatedInstructor; 
       }
-      return updatedInstructor; // Return the new state for the current page
+      return updatedInstructor; 
     });
     
     toast({
@@ -188,7 +200,7 @@ export default function InstructorProfilePage() {
         description: `${data.name}'s profile has been successfully updated.`,
     });
     setIsEditing(false);
-  }, [id, toast]);
+  }, [id, toast, instructor?.profilePictureUrl]);
   
   const handleDocumentsChange = useCallback((updatedDocs: PersonalDocument[]) => {
     setInstructor(prevInstructor => {
@@ -196,7 +208,6 @@ export default function InstructorProfilePage() {
             const updatedInstructorData = { ...prevInstructor, uploadedDocuments: updatedDocs };
             const index = mockInstructors.findIndex(i => i.id === prevInstructor.id);
             if (index !== -1) {
-                // Same note as above about direct mutation of mockInstructors
                 mockInstructors[index] = updatedInstructorData; 
             }
             return updatedInstructorData;
@@ -204,6 +215,17 @@ export default function InstructorProfilePage() {
         return null;
     });
   }, []);
+
+  // Cleanup blob URL on component unmount if it was created by this component instance
+  useEffect(() => {
+    return () => {
+      if (instructor?.profilePictureUrl && instructor.profilePictureUrl.startsWith('blob:')) {
+        // This cleanup is tricky because the blob URL might be from another session if not careful
+        // For a robust solution, blob URLs should ideally be managed more centrally or avoided for long-term state
+        // URL.revokeObjectURL(instructor.profilePictureUrl); // Potentially causes issues if URL is re-used. Manage more carefully or omit general cleanup.
+      }
+    };
+  }, [instructor?.profilePictureUrl]);
 
 
   if (!instructor) {
@@ -230,7 +252,11 @@ export default function InstructorProfilePage() {
       {isEditing ? (
         <Card>
           <CardContent className="p-6">
-            <InstructorForm initialData={instructor} onSubmit={handleFormSubmit} />
+            <InstructorForm 
+              initialData={instructor} 
+              onSubmit={handleFormSubmit}
+              potentialSupervisors={potentialSupervisors} 
+            />
           </CardContent>
         </Card>
       ) : (
@@ -251,6 +277,7 @@ export default function InstructorProfilePage() {
                   height={120}
                   className="rounded-lg border object-cover shadow-sm"
                   data-ai-hint="instructor portrait"
+                  unoptimized={instructor.profilePictureUrl?.startsWith('blob:')} // Important for blob URLs
                 />
                 <div className="flex-1">
                   <CardTitle className="text-2xl font-headline mb-1">{instructor.name}</CardTitle>
@@ -272,6 +299,7 @@ export default function InstructorProfilePage() {
                 </div>
                  <div>
                   <h4 className="font-semibold mb-2 text-primary flex items-center"><Briefcase className="mr-2 h-5 w-5"/>Professional Details</h4>
+                  <p className="text-sm mb-1">Role: {instructor.role.replace(/([A-Z])/g, ' $1').trim()}</p>
                   {instructor.supervisor && <p className="text-sm mb-1">Supervisor: {instructor.supervisor}</p>}
                   <p className="text-sm">Training Faculty: {instructor.isTrainingFaculty ? 'Yes' : 'No'}</p>
                 </div>
@@ -288,6 +316,9 @@ export default function InstructorProfilePage() {
                         </CardContent>
                       </Card>
                     ))}
+                    {(!instructor.certifications || Object.keys(instructor.certifications).length === 0) && (
+                        <p className="text-sm text-muted-foreground col-span-full">No certifications listed.</p>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -328,5 +359,3 @@ export default function InstructorProfilePage() {
     </div>
   );
 }
-
-    

@@ -1,25 +1,40 @@
+
 'use client';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { InstructorForm } from '@/components/instructors/InstructorForm';
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast"
 import type { Instructor } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
+import { mockInstructors } from '@/data/mockData'; // Import mockInstructors
 
 export default function NewInstructorPage() {
   const router = useRouter();
   const { toast } = useToast();
 
+  const potentialSupervisors = useMemo(() => {
+    return mockInstructors
+      .filter(instr => instr.role === 'TrainingCenterCoordinator' || instr.role === 'TrainingSiteCoordinator')
+      .map(instr => ({ id: instr.id, name: instr.name }));
+  }, []);
+
   const handleSubmit = (data: Instructor) => {
-    // In a real app, this would be an API call to save the data
-    console.log('New instructor data:', data);
-    // Add to mock data or state management if implementing client-side persistence for demo
+    const newInstructorWithId: Instructor = {
+      ...data,
+      id: `instr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // More unique ID
+      role: data.role || 'Instructor', // Default role if not set
+      // profilePictureUrl will come from form data (might be blob URL)
+    };
+    
+    // Add to mock data
+    mockInstructors.push(newInstructorWithId);
+    
     toast({
         title: "Instructor Added",
         description: `${data.name} has been successfully added.`,
     })
-    router.push('/instructors'); // Redirect to instructors list after submission
+    router.push('/instructors'); 
   };
 
   return (
@@ -30,7 +45,10 @@ export default function NewInstructorPage() {
       />
       <Card>
         <CardContent className="p-6">
-          <InstructorForm onSubmit={handleSubmit} />
+          <InstructorForm 
+            onSubmit={handleSubmit} 
+            potentialSupervisors={potentialSupervisors} 
+          />
         </CardContent>
       </Card>
     </div>
