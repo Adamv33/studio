@@ -1,6 +1,6 @@
 
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { mockInstructors, mockCourses } from '@/data/mockData';
 import type { Instructor, Course, PersonalDocument } from '@/types';
@@ -10,15 +10,15 @@ import { ArrowLeft, Edit3, User, Mail, Phone, MapPin, Award, ShieldCheck, Briefc
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InstructorForm } from '@/components/instructors/InstructorForm';
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/hooks/use-toast";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
 
-const CertificationDisplay: React.FC<{ cert?: { name: string; issuedDate?: string; expiryDate?: string } }> = ({ cert }) => {
+const CertificationDisplay: React.FC<{ cert?: { name: string; issuedDate?: string; expiryDate?: string } }> = memo(({ cert }) => {
   if (!cert || (!cert.issuedDate && !cert.expiryDate)) return <span className="text-muted-foreground">Not specified</span>;
   
   const isExpired = cert.expiryDate ? new Date(cert.expiryDate) < new Date() : false;
@@ -37,14 +37,16 @@ const CertificationDisplay: React.FC<{ cert?: { name: string; issuedDate?: strin
       )}
     </div>
   );
-};
+});
+CertificationDisplay.displayName = 'CertificationDisplay';
 
-const PersonalDocumentsSection: React.FC<{ instructor: Instructor, onDocumentsChange: (docs: PersonalDocument[]) => void }> = ({ instructor, onDocumentsChange }) => {
+
+const PersonalDocumentsSection: React.FC<{ instructor: Instructor, onDocumentsChange: (docs: PersonalDocument[]) => void }> = memo(({ instructor, onDocumentsChange }) => {
   const [documents, setDocuments] = useState<PersonalDocument[]>(instructor.uploadedDocuments || []);
   const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       const newDocument: PersonalDocument = {
@@ -61,19 +63,27 @@ const PersonalDocumentsSection: React.FC<{ instructor: Instructor, onDocumentsCh
       onDocumentsChange(updatedDocs); 
       toast({ title: "Document Uploaded", description: `${file.name} uploaded successfully.` });
     }
-  };
+  }, [documents, instructor.id, onDocumentsChange, toast]);
 
-  const handleDeleteDocument = (docId: string) => {
+  const handleDeleteDocument = useCallback((docId: string) => {
     const updatedDocs = documents.filter(doc => doc.id !== docId);
     setDocuments(updatedDocs);
     onDocumentsChange(updatedDocs);
     toast({ title: "Document Deleted", description: `Document removed.`, variant: "destructive" });
-  };
+  }, [documents, onDocumentsChange, toast]);
 
-  const filteredDocuments = documents.filter(doc =>
+  const filteredDocuments = useMemo(() => documents.filter(doc =>
     doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     doc.type.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ), [documents, searchTerm]);
+
+  useEffect(() => {
+    if (instructor.uploadedDocuments && JSON.stringify(instructor.uploadedDocuments) !== JSON.stringify(documents)) {
+        setDocuments(instructor.uploadedDocuments);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instructor.uploadedDocuments]);
+
 
   return (
     <Card>
@@ -128,7 +138,8 @@ const PersonalDocumentsSection: React.FC<{ instructor: Instructor, onDocumentsCh
       </CardContent>
     </Card>
   );
-};
+});
+PersonalDocumentsSection.displayName = 'PersonalDocumentsSection';
 
 
 export default function InstructorProfilePage() {
@@ -152,36 +163,42 @@ export default function InstructorProfilePage() {
     }
   }, [id, router]);
 
-  if (!instructor) {
-    return <div className="flex justify-center items-center h-screen"><p>Loading instructor data...</p></div>;
-  }
+  const handleEditToggle = useCallback(() => setIsEditing(prev => !prev), []);
 
-  const handleEditToggle = () => setIsEditing(!isEditing);
-
-  const handleFormSubmit = (data: Instructor) => {
-    const updatedInstructor = { ...instructor, ...data };
-    setInstructor(updatedInstructor);
-    const index = mockInstructors.findIndex(i => i.id === id);
-    if (index !== -1) mockInstructors[index] = updatedInstructor;
+  const handleFormSubmit = useCallback((data: Instructor) => {
+    setInstructor(prevInstructor => {
+      if (!prevInstructor) return null; 
+      const updatedInstructor = { ...prevInstructor, ...data };
+      const index = mockInstructors.findIndex(i => i.id === id);
+      if (index !== -1) mockInstructors[index] = updatedInstructor; 
+      return updatedInstructor;
+    });
     
     toast({
         title: "Profile Updated",
         description: `${data.name}'s profile has been successfully updated.`,
-    })
+    });
     setIsEditing(false);
-  };
+  }, [id, toast]);
   
-  const handleDocumentsChange = (updatedDocs: PersonalDocument[]) => {
-    if (instructor) {
-        const updatedInstructorData = { ...instructor, uploadedDocuments: updatedDocs };
-        setInstructor(updatedInstructorData);
-        const index = mockInstructors.findIndex(i => i.id === instructor.id);
-        if (index !== -1) {
-            mockInstructors[index] = updatedInstructorData;
+  const handleDocumentsChange = useCallback((updatedDocs: PersonalDocument[]) => {
+    setInstructor(prevInstructor => {
+        if (prevInstructor) {
+            const updatedInstructorData = { ...prevInstructor, uploadedDocuments: updatedDocs };
+            const index = mockInstructors.findIndex(i => i.id === prevInstructor.id);
+            if (index !== -1) {
+                mockInstructors[index] = updatedInstructorData; 
+            }
+            return updatedInstructorData;
         }
-    }
-  };
+        return null;
+    });
+  }, []);
 
+
+  if (!instructor) {
+    return <div className="flex justify-center items-center h-screen"><p>Loading instructor data...</p></div>;
+  }
 
   return (
     <div>
@@ -301,5 +318,3 @@ export default function InstructorProfilePage() {
     </div>
   );
 }
-
-    

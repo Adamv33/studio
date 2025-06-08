@@ -1,6 +1,6 @@
 
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
@@ -45,16 +45,16 @@ export default function CoursesPage() {
     if (mockInstructors.length > 0 && !batchInstructorId) {
         setBatchInstructorId(mockInstructors[0].id);
     }
-  }, [batchInstructorId]);
+  }, [batchInstructorId]); 
 
-  const handleDeleteCourse = (id: string) => {
+  const handleDeleteCourse = useCallback((id: string) => {
     setCourses(prev => prev.filter(course => course.id !== id));
      toast({
         title: "Course Deleted",
         description: `Course has been removed.`,
         variant: "destructive"
     });
-  };
+  }, [toast]);
 
   const handleBulkAddCourses = async () => {
     if (!pastedData.trim()) {
@@ -99,7 +99,7 @@ export default function CoursesPage() {
         instructorId: batchInstructorId,
         instructorName: selectedInstructor.name,
         trainingLocationAddress: batchTrainingAddress,
-        courseType: 'Other', // Default, AI will try to generate a description based on this
+        courseType: 'Other', 
       };
     }).filter(course => course !== null && course.eCardCode) as Omit<Course, 'description'>[];
 
@@ -115,26 +115,12 @@ export default function CoursesPage() {
 
     const coursesWithDescriptionsPromises = parsedCourses.map(async (course) => {
       try {
-        // Infer course type for description generation if possible, otherwise use a default.
-        // For simplicity, we'll assume the pasted data doesn't specify a type, so we use 'Other'
-        // or a more sophisticated logic could try to infer it from other data if available.
-        // Here, we'll use a placeholder type or one from the input if it were available.
-        // Let's assume for now, the 'courseType' is part of the initial parsing or a fixed value.
-        // For this example, let's say the sixth column was course type, or use a default.
-        // Fields: eCard, Date, First, Last, Email, Phone. No courseType here.
-        // So we'll use a default 'Other' or a more fixed one if desired.
-        // The current parsing logic defaults to 'Other'.
-        
-        // Let's modify the requirement. We'll ask user for a general course type for the batch.
-        // For now, I'll use the 'Other' as a placeholder and the AI flow has a fallback.
-        // A better UX would be to add a Course Type dropdown for the whole batch too.
-        // For now, I'll stick to the current definition which sets courseType to 'Other'.
         const { description } = await generateCourseDescription({ courseType: course.courseType || 'Other' });
         return { ...course, description };
       } catch (error) {
         console.error(`Failed to generate description for course ${course.id}:`, error);
         toast({ title: "AI Error", description: `Could not generate description for ${course.studentFirstName} ${course.studentLastName}.`, variant: "destructive" });
-        return { ...course, description: `Standard ${course.courseType || 'Other'} course.` }; // Fallback description
+        return { ...course, description: `Standard ${course.courseType || 'Other'} course.` }; 
       }
     });
 

@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -27,7 +27,7 @@ export default function ChatPage() {
   const [newMessage, setNewMessage] = useState('');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (newMessage.trim() === '') return;
 
@@ -40,7 +40,7 @@ export default function ChatPage() {
     };
     setMessages((prevMessages) => [...prevMessages, message]);
     setNewMessage('');
-  };
+  }, [newMessage]); 
 
   useEffect(() => {
     if (scrollAreaRef.current) {

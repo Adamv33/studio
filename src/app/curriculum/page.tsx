@@ -1,26 +1,28 @@
+
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, memo, useCallback } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { mockCurriculum } from '@/data/mockData';
 import type { CurriculumDocument } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Search, Folder, FileText, Link as LinkIcon, Download } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
 
-const DocumentIcon: React.FC<{ type: CurriculumDocument['type'] }> = ({ type }) => {
+const DocumentIcon: React.FC<{ type: CurriculumDocument['type'] }> = memo(({ type }) => {
   switch (type) {
     case 'folder': return <Folder className="h-5 w-5 text-yellow-500" />;
     case 'pdf': return <FileText className="h-5 w-5 text-red-500" />;
     case 'doc': return <FileText className="h-5 w-5 text-blue-500" />;
-    case 'video': return <FileText className="h-5 w-5 text-purple-500" />; // Placeholder, consider Video icon
+    case 'video': return <FileText className="h-5 w-5 text-purple-500" />;
     case 'link': return <LinkIcon className="h-5 w-5 text-green-500" />;
     default: return <FileText className="h-5 w-5 text-gray-500" />;
   }
-};
+});
+DocumentIcon.displayName = 'DocumentIcon';
 
-const CurriculumItemDisplay: React.FC<{ item: CurriculumDocument, level?: number }> = ({ item, level = 0 }) => {
+const CurriculumItemDisplay: React.FC<{ item: CurriculumDocument, level?: number }> = memo(({ item, level = 0 }) => {
   const isFolder = item.type === 'folder' && item.children && item.children.length > 0;
 
   if (isFolder) {
@@ -60,7 +62,8 @@ const CurriculumItemDisplay: React.FC<{ item: CurriculumDocument, level?: number
       )}
     </div>
   );
-};
+});
+CurriculumItemDisplay.displayName = 'CurriculumItemDisplay';
 
 
 export default function CurriculumPage() {
@@ -71,13 +74,13 @@ export default function CurriculumPage() {
     setCurriculum(mockCurriculum);
   }, []);
 
-  const filterCurriculum = (items: CurriculumDocument[], term: string): CurriculumDocument[] => {
+  const filterCurriculumRecursive = useCallback((items: CurriculumDocument[], term: string): CurriculumDocument[] => {
     if (!term) return items;
     return items.reduce((acc, item) => {
       const nameMatch = item.name.toLowerCase().includes(term.toLowerCase());
       const descMatch = item.description?.toLowerCase().includes(term.toLowerCase());
       if (item.type === 'folder' && item.children) {
-        const filteredChildren = filterCurriculum(item.children, term);
+        const filteredChildren = filterCurriculumRecursive(item.children, term);
         if (filteredChildren.length > 0 || nameMatch || descMatch) {
           acc.push({ ...item, children: filteredChildren.length > 0 ? filteredChildren : (nameMatch || descMatch ? [] : undefined) });
         }
@@ -86,9 +89,12 @@ export default function CurriculumPage() {
       }
       return acc;
     }, [] as CurriculumDocument[]);
-  };
+  }, []);
 
-  const filteredCurriculum = filterCurriculum(curriculum, searchTerm);
+
+  const filteredCurriculum = useMemo(() => {
+    return filterCurriculumRecursive(curriculum, searchTerm);
+  }, [curriculum, searchTerm, filterCurriculumRecursive]);
 
   return (
     <div>

@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { memo } from 'react'; 
 import Link from 'next/link';
 import Image from 'next/image';
 import { Instructor } from '@/types';
@@ -17,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 
 interface InstructorCardProps {
   instructor: Instructor;
@@ -31,7 +31,7 @@ const StatusIcon = ({ status }: { status: Instructor['status'] }) => {
   return null;
 };
 
-export function InstructorCard({ instructor, onDelete }: InstructorCardProps) {
+export const InstructorCard = memo(function InstructorCard({ instructor, onDelete }: InstructorCardProps) {
   return (
     <Card className="flex flex-col h-full shadow-md hover:shadow-lg transition-shadow duration-200">
       <CardHeader className="flex flex-row items-start gap-4 space-y-0 p-4">
@@ -55,8 +55,6 @@ export function InstructorCard({ instructor, onDelete }: InstructorCardProps) {
         </div>
       </CardHeader>
       <CardContent className="p-4 pt-0 text-sm space-y-2 flex-grow">
-        {/* Email and Phone removed for privacy */}
-        {/* Mailing address (and thus city/state) is not displayed due to unstructured data and privacy concerns. */}
         {instructor.isTrainingFaculty && (
            <Badge variant="outline" className="text-xs">Training Faculty</Badge>
         )}
@@ -97,4 +95,5 @@ export function InstructorCard({ instructor, onDelete }: InstructorCardProps) {
       </CardFooter>
     </Card>
   );
-}
+});
+InstructorCard.displayName = 'InstructorCard';

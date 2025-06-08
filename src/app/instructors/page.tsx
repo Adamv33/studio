@@ -1,11 +1,12 @@
+
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { mockInstructors } from '@/data/mockData';
 import type { Instructor } from '@/types';
-import { PlusCircle, Edit3, Trash2, Search, Filter } from 'lucide-react';
+import { PlusCircle, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { InstructorCard } from '@/components/instructors/InstructorCard';
 import {
@@ -15,8 +16,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { useToast } from "@/hooks/use-toast"
+} from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
+import { Search } from 'lucide-react'; 
 
 export default function InstructorsPage() {
   const [instructors, setInstructors] = useState<Instructor[]>([]);
@@ -26,33 +28,33 @@ export default function InstructorsPage() {
 
 
   useEffect(() => {
-    // Simulate fetching data
     setInstructors(mockInstructors);
   }, []);
 
-  const handleStatusFilterChange = (status: string) => {
+  const handleStatusFilterChange = useCallback((status: string) => {
     setStatusFilter(prev => 
       prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
     );
-  };
+  }, []);
 
-  const filteredInstructors = instructors
-    .filter(instructor =>
-      instructor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      instructor.emailAddress.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      instructor.instructorId.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .filter(instructor => statusFilter.includes(instructor.status));
+  const filteredInstructors = useMemo(() => {
+    return instructors
+      .filter(instructor =>
+        instructor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        instructor.emailAddress.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        instructor.instructorId.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .filter(instructor => statusFilter.includes(instructor.status));
+  }, [instructors, searchTerm, statusFilter]);
 
-  const handleDeleteInstructor = (id: string) => {
-    // In a real app, this would be an API call
+  const handleDeleteInstructor = useCallback((id: string) => {
     setInstructors(prev => prev.filter(instructor => instructor.id !== id));
     toast({
         title: "Instructor Deleted",
         description: `Instructor with ID ${id} has been removed.`,
         variant: "destructive"
-    })
-  };
+    });
+  }, [toast]);
 
 
   return (
