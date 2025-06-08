@@ -24,12 +24,13 @@ interface InstructorCardProps {
   onDelete: (id: string) => void;
 }
 
-const StatusIcon = ({ status }: { status: Instructor['status'] }) => {
+const StatusIcon = memo(({ status }: { status: Instructor['status'] }) => {
   if (status === 'Active') return <UserCheck className="h-4 w-4 text-green-500" />;
   if (status === 'Inactive') return <UserX className="h-4 w-4 text-red-500" />;
   if (status === 'Pending') return <Clock className="h-4 w-4 text-yellow-500" />;
   return null;
-};
+});
+StatusIcon.displayName = 'StatusIcon';
 
 export const InstructorCard = memo(function InstructorCard({ instructor, onDelete }: InstructorCardProps) {
   return (
@@ -83,10 +84,12 @@ export const InstructorCard = memo(function InstructorCard({ instructor, onDelet
           </AlertDialogContent>
         </AlertDialog>
         <div className="flex gap-2">
-           <Button variant="outline" size="sm">
-            <MessageSquare className="h-4 w-4 mr-1" /> Chat
-          </Button>
-          <Link href={`/instructors/${instructor.id}`}>
+           <Link href="/chat" passHref>
+            <Button variant="outline" size="sm">
+              <MessageSquare className="h-4 w-4 mr-1" /> Chat
+            </Button>
+           </Link>
+          <Link href={`/instructors/${instructor.id}`} passHref>
             <Button variant="outline" size="sm">
               View Profile <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
