@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { InstructorForm } from '@/components/instructors/InstructorForm';
 import { useToast } from "@/hooks/use-toast"
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
 
