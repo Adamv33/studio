@@ -1,8 +1,9 @@
+
 import React from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Course, Instructor } from '@/types';
+import { Course, Instructor, CourseType } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +16,27 @@ import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { DialogFooter, DialogClose } from "@/components/ui/dialog"
 
+const courseTypesList: CourseType[] = [
+  'ACLS EP',
+  'ACLS Provider',
+  'Advisor: BLS',
+  'BLS Provider',
+  'HeartCode ACLS w/lnstructor',
+  'HeartCode ACLS w/VAM',
+  'HeartCode BLS w/lnstructor',
+  'HeartCode BLS w/VAM',
+  'HeartCode PALS w/lnstructor',
+  'HeartCode PALS w/VAM',
+  'Heartsaver CPR AED',
+  'Heartsaver First Aid',
+  'Heartsaver First Aid CPR AED',
+  'Heartsaver for K-12 Schools',
+  'Heartsaver Pediatric First Aid CPR AED',
+  'PALS Plus Provider',
+  'PALS Provider',
+  'PEARS Provider',
+  'Other'
+];
 
 const courseSchema = z.object({
   eCardCode: z.string().min(1, 'eCard Code is required'),
@@ -25,7 +47,7 @@ const courseSchema = z.object({
   studentPhone: z.string().min(10, 'Phone number must be at least 10 digits').regex(/^\S+$/, 'Phone number cannot contain spaces.'),
   instructorId: z.string().min(1, 'Instructor is required'),
   trainingLocationAddress: z.string().min(1, 'Training location address is required'),
-  courseType: z.enum(['Heartsaver', 'BLS', 'ACLS', 'PALS', 'Other']),
+  courseType: z.enum(courseTypesList as [CourseType, ...CourseType[]]), // Zod enum needs a non-empty array with at least one element
 });
 
 type CourseFormData = z.infer<typeof courseSchema>;
@@ -51,7 +73,7 @@ export function CourseForm({ instructors, onSubmit, initialData }: CourseFormPro
       studentPhone: '',
       instructorId: instructors.length > 0 ? instructors[0].id : '',
       trainingLocationAddress: '',
-      courseType: 'BLS',
+      courseType: 'BLS Provider', // Default to a common type
     },
   });
 
@@ -59,6 +81,7 @@ export function CourseForm({ instructors, onSubmit, initialData }: CourseFormPro
     const courseData: Course = {
       ...data,
       id: initialData?.id || `course_${Date.now()}`,
+      // instructorName is not part of the form, it's derived or set elsewhere
     };
     onSubmit(courseData);
     if (!initialData) { // Reset form only if it's a new course entry
@@ -166,7 +189,7 @@ export function CourseForm({ instructors, onSubmit, initialData }: CourseFormPro
                   <SelectValue placeholder="Select course type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {['Heartsaver', 'BLS', 'ACLS', 'PALS', 'Other'].map(type => (
+                  {courseTypesList.map(type => (
                     <SelectItem key={type} value={type}>{type}</SelectItem>
                   ))}
                 </SelectContent>
@@ -194,3 +217,5 @@ export function CourseForm({ instructors, onSubmit, initialData }: CourseFormPro
     </form>
   );
 }
+
+    

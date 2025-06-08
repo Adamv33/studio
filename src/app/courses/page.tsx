@@ -25,7 +25,28 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { generateCourseDescription } from '@/ai/flows/generate-course-description-flow';
 
-const availableCourseTypes: Course['courseType'][] = ['Heartsaver', 'BLS', 'ACLS', 'PALS', 'Other'];
+const availableCourseTypes: Course['courseType'][] = [
+  'ACLS EP',
+  'ACLS Provider',
+  'Advisor: BLS',
+  'BLS Provider',
+  'HeartCode ACLS w/lnstructor',
+  'HeartCode ACLS w/VAM',
+  'HeartCode BLS w/lnstructor',
+  'HeartCode BLS w/VAM',
+  'HeartCode PALS w/lnstructor',
+  'HeartCode PALS w/VAM',
+  'Heartsaver CPR AED',
+  'Heartsaver First Aid',
+  'Heartsaver First Aid CPR AED',
+  'Heartsaver for K-12 Schools',
+  'Heartsaver Pediatric First Aid CPR AED',
+  'PALS Plus Provider',
+  'PALS Provider',
+  'PEARS Provider',
+  'Other' // Keep 'Other' as a fallback
+];
+
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -33,7 +54,7 @@ export default function CoursesPage() {
   const [pastedData, setPastedData] = useState('');
   const [batchInstructorId, setBatchInstructorId] = useState<string>('');
   const [batchTrainingAddress, setBatchTrainingAddress] = useState<string>('');
-  const [batchCourseType, setBatchCourseType] = useState<Course['courseType']>('Other');
+  const [batchCourseType, setBatchCourseType] = useState<Course['courseType']>('BLS Provider'); // Default to a common type
   const [isAddCourseDialogOpen, setIsAddCourseDialogOpen] = useState(false);
   const [isGeneratingDescriptions, setIsGeneratingDescriptions] = useState(false);
   const { toast } = useToast();
@@ -48,7 +69,7 @@ export default function CoursesPage() {
     if (mockInstructors.length > 0 && !batchInstructorId) {
         setBatchInstructorId(mockInstructors[0].id);
     }
-  }, [batchInstructorId]); 
+  }, [batchInstructorId]);
 
   const handleDeleteCourse = useCallback((id: string) => {
     setCourses(prev => prev.filter(course => course.id !== id));
@@ -59,7 +80,7 @@ export default function CoursesPage() {
     });
   }, [toast]);
 
-  const handleBulkAddCourses = async () => {
+  const handleBulkAddCourses = useCallback(async () => {
     if (!pastedData.trim()) {
       toast({ title: "No Data", description: "Paste student roster data into the textarea first.", variant: "destructive" });
       return;
@@ -138,9 +159,6 @@ export default function CoursesPage() {
       setCourses(prev => [...newCoursesWithDescriptions, ...prev]);
       toast({ title: "Courses Added", description: `${newCoursesWithDescriptions.length} courses added with AI-generated descriptions.` });
       setPastedData('');
-      // setBatchInstructorId(instructors.length > 0 ? instructors[0].id : ''); // Keep instructor selected
-      // setBatchTrainingAddress(''); // Keep address
-      // setBatchCourseType('Other'); // Reset course type for next batch or keep selected? For now, reset.
       setIsAddCourseDialogOpen(false);
     } else if (lines.length > 0 && coursesSuccessfullyParsed === 0) {
         toast({ title: "Parsing Failed", description: "No courses were added. Ensure data is tab-separated with 6 columns.", variant: "destructive" });
@@ -149,16 +167,15 @@ export default function CoursesPage() {
         setPastedData('');
         setIsAddCourseDialogOpen(false);
     }
-  };
+  }, [pastedData, batchInstructorId, batchTrainingAddress, batchCourseType, instructors, toast]);
 
   useEffect(() => {
     if (isAddCourseDialogOpen) {
       if (instructors.length > 0 && !batchInstructorId) {
         setBatchInstructorId(instructors[0].id);
       }
-      // If batchCourseType is not set or dialog reopens, default it.
-      if (!batchCourseType) {
-        setBatchCourseType('Other');
+      if (!batchCourseType && availableCourseTypes.length > 0) {
+        setBatchCourseType(availableCourseTypes[0]); // Default to the first in the new list
       }
     }
   }, [isAddCourseDialogOpen, instructors, batchInstructorId, batchCourseType]);
@@ -174,14 +191,12 @@ export default function CoursesPage() {
                 setIsAddCourseDialogOpen(isOpen);
                 if (!isOpen) { 
                     setPastedData('');
-                    // Optionally reset other batch fields here if desired when dialog closes
-                    // setBatchCourseType('Other');
                 } else {
                     if (instructors.length > 0 && !batchInstructorId) {
                         setBatchInstructorId(instructors[0].id);
                     }
-                    if (!batchCourseType) {
-                         setBatchCourseType('Other');
+                    if (!batchCourseType && availableCourseTypes.length > 0) {
+                         setBatchCourseType(availableCourseTypes[0]);
                     }
                 }
             }}>
@@ -250,7 +265,7 @@ export default function CoursesPage() {
                         <DialogClose asChild>
                             <Button type="button" variant="outline" disabled={isGeneratingDescriptions}>Cancel</Button>
                         </DialogClose>
-                        <Button onClick={handleBulkAddCourses} disabled={isGeneratingDescriptions}>
+                        <Button onClick={handleBulkAddCourses} disabled={isGeneratingDescriptions || !pastedData.trim() || !batchInstructorId || !batchTrainingAddress || !batchCourseType}>
                           {isGeneratingDescriptions ? "Processing..." : "Parse and Add Courses"}
                         </Button>
                     </DialogFooter>
@@ -270,3 +285,4 @@ export default function CoursesPage() {
   );
 }
 
+    

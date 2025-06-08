@@ -30,6 +30,27 @@ export interface Instructor {
   managedByInstructorId?: string; // ID of the TrainingSiteCoordinator or TrainingCenterCoordinator who manages this instructor
 }
 
+export type CourseType =
+  | 'ACLS EP'
+  | 'ACLS Provider'
+  | 'Advisor: BLS'
+  | 'BLS Provider'
+  | 'HeartCode ACLS w/lnstructor'
+  | 'HeartCode ACLS w/VAM'
+  | 'HeartCode BLS w/lnstructor'
+  | 'HeartCode BLS w/VAM'
+  | 'HeartCode PALS w/lnstructor'
+  | 'HeartCode PALS w/VAM'
+  | 'Heartsaver CPR AED'
+  | 'Heartsaver First Aid'
+  | 'Heartsaver First Aid CPR AED'
+  | 'Heartsaver for K-12 Schools'
+  | 'Heartsaver Pediatric First Aid CPR AED'
+  | 'PALS Plus Provider'
+  | 'PALS Provider'
+  | 'PEARS Provider'
+  | 'Other';
+
 export interface Course {
   id: string;
   eCardCode: string;
@@ -41,7 +62,7 @@ export interface Course {
   instructorId: string; 
   instructorName?: string; // For display
   trainingLocationAddress: string;
-  courseType: 'Heartsaver' | 'BLS' | 'ACLS' | 'PALS' | 'Other';
+  courseType: CourseType;
   description?: string; // AI-generated description
 }
 
@@ -66,3 +87,4 @@ export interface PersonalDocument {
   size?: string;
 }
 
+    
