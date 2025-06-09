@@ -1,5 +1,5 @@
 
-'use client';
+// Remove 'use client' from the top of the file to make ChatPage a Server Component by default.
 
 import React, { Suspense, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -27,6 +27,8 @@ const currentUser: Instructor = mockInstructors.length > 0 ? mockInstructors[0] 
 
 // Component containing the actual chat logic using useSearchParams
 function ChatInterface() {
+  'use client'; // Add 'use client' here to make ChatInterface explicitly a Client Component.
+
   const [allMessages, setAllMessages] = useState<Record<string, ChatMessage[]>>({});
   const [newMessage, setNewMessage] = useState('');
   const [chatPartner, setChatPartner] = useState<Instructor | null>(null);
@@ -185,7 +187,8 @@ function ChatInterface() {
   );
 }
 
-// Default export for the page, wrapping ChatInterface with Suspense
+// Default export for the page, ChatPage is now a Server Component.
+// It wraps the ChatInterface Client Component in Suspense.
 export default function ChatPage() {
   return (
     <Suspense fallback={<div className="flex justify-center items-center h-screen"><p className="text-lg text-muted-foreground">Loading Chat...</p></div>}>
