@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Instructor, Certification, PersonalDocument, UserRole } from '@/types';
+import { Instructor, Certification, PersonalDocument, UserRole, UserProfile } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import Image from 'next/image';
 
+const userRolesList: UserRole[] = ['Instructor', 'TrainingSiteCoordinator', 'TrainingCenterCoordinator', 'Admin'];
+
 const instructorSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   instructorId: z.string().min(1, 'Instructor ID is required'),
@@ -29,11 +31,12 @@ const instructorSchema = z.object({
     bls: z.object({ name: z.string(), issuedDate: z.string().optional(), expiryDate: z.string().optional() }).optional(),
     acls: z.object({ name: z.string(), issuedDate: z.string().optional(), expiryDate: z.string().optional() }).optional(),
     pals: z.object({ name: z.string(), issuedDate: z.string().optional(), expiryDate: z.string().optional() }).optional(),
-  }).optional(), // Making the whole certifications object optional in form data
+  }).optional(),
   isTrainingFaculty: z.boolean(),
-  supervisor: z.string().optional(),
+  supervisor: z.string().optional(), // This field will represent the selected supervisor's name from dropdown
   profilePictureUrl: z.string().optional(),
-  role: z.custom<UserRole>().optional(), // Role can be optional in the form, will default later
+  role: z.custom<UserRole>().default('Instructor'), // Role with default
+  managedByInstructorId: z.string().optional(), // Hidden field, set programmatically
 });
 
 type InstructorFormData = z.infer<typeof instructorSchema>;
@@ -41,13 +44,14 @@ type InstructorFormData = z.infer<typeof instructorSchema>;
 interface InstructorFormProps {
   initialData?: Instructor;
   onSubmit: (data: Instructor) => void;
-  potentialSupervisors: Pick<Instructor, 'id' | 'name'>[];
+  potentialSupervisors: Array<{ id: string; name: string; role: UserProfile['role'] }>; // Added role here
+  currentUserProfile: UserProfile | null; // For permission checks
 }
 
 const certificationTypes: Array<keyof NonNullable<Instructor['certifications']>> = ['heartsaver', 'bls', 'acls', 'pals'];
 const NO_SUPERVISOR_VALUE = "_none_"; 
 
-export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: InstructorFormProps) {
+export function InstructorForm({ initialData, onSubmit, potentialSupervisors, currentUserProfile }: InstructorFormProps) {
   const { register, handleSubmit, control, formState: { errors }, watch, setValue } = useForm<InstructorFormData>({
     resolver: zodResolver(instructorSchema),
     defaultValues: {
@@ -57,27 +61,42 @@ export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: 
       phoneNumber: initialData?.phoneNumber || '',
       mailingAddress: initialData?.mailingAddress || '',
       emailAddress: initialData?.emailAddress || '',
-      certifications: { // Ensure certifications object is always present in form state
+      certifications: { 
         heartsaver: initialData?.certifications?.heartsaver || { name: 'Heartsaver' },
         bls: initialData?.certifications?.bls || { name: 'BLS' },
         acls: initialData?.certifications?.acls || { name: 'ACLS' },
         pals: initialData?.certifications?.pals || { name: 'PALS' },
       },
       isTrainingFaculty: initialData?.isTrainingFaculty || false,
-      supervisor: initialData?.supervisor || '',
+      supervisor: initialData?.supervisor || '', // Supervisor name for display/selection
       profilePictureUrl: initialData?.profilePictureUrl || '',
       role: initialData?.role || 'Instructor',
+      managedByInstructorId: initialData?.managedByInstructorId || '',
     },
   });
 
   const [imagePreview, setImagePreview] = useState<string | null>(initialData?.profilePictureUrl || null);
+
+  const canEditRole = currentUserProfile?.role === 'Admin' || currentUserProfile?.role === 'TrainingCenterCoordinator';
+  const canSelectSupervisor = currentUserProfile?.role === 'Admin' || (currentUserProfile?.role === 'TrainingCenterCoordinator' && potentialSupervisors.length > 0);
+
 
   useEffect(() => {
     if (initialData?.profilePictureUrl) {
       setImagePreview(initialData.profilePictureUrl);
       setValue('profilePictureUrl', initialData.profilePictureUrl);
     }
-  }, [initialData?.profilePictureUrl, setValue]);
+    // Set initial managedByInstructorId from initialData if editing
+    if (initialData?.managedByInstructorId) {
+      setValue('managedByInstructorId', initialData.managedByInstructorId);
+      // Try to set supervisor display name based on managedByInstructorId
+      const supervisorName = potentialSupervisors.find(s => s.id === initialData.managedByInstructorId)?.name ||
+                             (initialData.supervisor); // Fallback to existing supervisor name if not in list
+      setValue('supervisor', supervisorName || '');
+    }
+
+
+  }, [initialData, setValue, potentialSupervisors]);
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -92,23 +111,42 @@ export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: 
   };
 
   const processSubmit = (data: InstructorFormData) => {
-    const supervisorValue = data.supervisor === NO_SUPERVISOR_VALUE ? '' : data.supervisor;
+    let finalManagedById = data.managedByInstructorId;
+    
+    // If a supervisor name was selected from dropdown, find its ID
+    if (data.supervisor && data.supervisor !== NO_SUPERVISOR_VALUE) {
+        const selectedSupervisor = potentialSupervisors.find(s => s.name === data.supervisor);
+        if (selectedSupervisor) {
+            finalManagedById = selectedSupervisor.id;
+        }
+    } else if (data.supervisor === NO_SUPERVISOR_VALUE) {
+        finalManagedById = undefined; // Explicitly no supervisor
+    }
+    // If creating new and current user is TSC, they become the manager
+    else if (!initialData && currentUserProfile?.role === 'TrainingSiteCoordinator') {
+        finalManagedById = currentUserProfile.id;
+    } 
+    // If creating new and current user is TCC, and no supervisor selected, TCC becomes manager
+    else if (!initialData && currentUserProfile?.role === 'TrainingCenterCoordinator' && !finalManagedById) {
+       finalManagedById = currentUserProfile.id;
+    }
+
 
     const completeData: Instructor = {
       ...initialData, 
       ...data, 
-      supervisor: supervisorValue,
+      supervisor: data.supervisor === NO_SUPERVISOR_VALUE ? '' : data.supervisor, // Keep display name if provided
+      managedByInstructorId: finalManagedById,
       id: initialData?.id || `instr_${Date.now()}`,
       profilePictureUrl: imagePreview || data.profilePictureUrl || '', 
       uploadedDocuments: initialData?.uploadedDocuments || [],
-      // Ensure certifications is always an object, falling back to initialData or a default structure
       certifications: data.certifications || initialData?.certifications || {
         heartsaver: { name: 'Heartsaver' },
         bls: { name: 'BLS' },
         acls: { name: 'ACLS' },
         pals: { name: 'PALS' },
       },
-      role: data.role || initialData?.role || 'Instructor', // Ensure role has a default
+      role: data.role || initialData?.role || 'Instructor',
     };
     onSubmit(completeData);
   };
@@ -196,20 +234,55 @@ export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: 
             name="role"
             control={control}
             render={({ field }) => (
-              <Select onValueChange={field.onChange} value={field.value || 'Instructor'}>
+              <Select onValueChange={field.onChange} value={field.value || 'Instructor'} disabled={!canEditRole && !!initialData /* Can only edit role if Admin/TCC, or if new instructor */}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Instructor">Instructor</SelectItem>
-                  <SelectItem value="TrainingSiteCoordinator">Training Site Coordinator</SelectItem>
-                  <SelectItem value="TrainingCenterCoordinator">Training Center Coordinator</SelectItem>
+                  {userRolesList.map(roleItem => (
+                    <SelectItem key={roleItem} value={roleItem} disabled={roleItem === 'Admin' && currentUserProfile?.role !== 'Admin'}>
+                      {roleItem.replace(/([A-Z])/g, ' $1').trim()}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}
           />
           {errors.role && <p className="text-sm text-destructive mt-1">{errors.role.message}</p>}
         </div>
+      
+      {canSelectSupervisor && (
+        <div>
+          <Label htmlFor="supervisor">Assign Supervisor (Managed By)</Label>
+          <Controller
+            name="supervisor" // This field now stores the supervisor's name for selection
+            control={control}
+            render={({ field }) => (
+              <Select
+                onValueChange={(value) => {
+                    field.onChange(value); // Store name
+                    const selectedSup = potentialSupervisors.find(s => s.name === value);
+                    setValue('managedByInstructorId', selectedSup ? selectedSup.id : (value === NO_SUPERVISOR_VALUE ? undefined : ''));
+                }}
+                value={field.value === '' ? NO_SUPERVISOR_VALUE : field.value}
+                disabled={!canSelectSupervisor && !!initialData}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select supervisor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_SUPERVISOR_VALUE}>None (Directly managed by Admin/System or current TCC)</SelectItem>
+                  {potentialSupervisors.map(sup => (
+                    <SelectItem key={sup.id} value={sup.name}>{sup.name} ({sup.role.replace(/([A-Z])/g, ' $1').trim()})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.supervisor && <p className="text-sm text-destructive mt-1">{errors.supervisor.message}</p>}
+        </div>
+      )}
+      <input type="hidden" {...register('managedByInstructorId')} />
 
 
       <h3 className="text-lg font-medium font-headline border-b pb-2 mb-4">Certifications</h3>
@@ -289,45 +362,19 @@ export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: 
         ))}
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="flex items-center space-x-2">
-          <Controller
-              name="isTrainingFaculty"
-              control={control}
-              render={({ field }) => (
-                <Switch
-                  id="isTrainingFaculty"
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              )}
-            />
-          <Label htmlFor="isTrainingFaculty">Is Training Faculty</Label>
-        </div>
-        <div>
-          <Label htmlFor="supervisor">Supervisor</Label>
-          <Controller
-            name="supervisor"
+      <div className="flex items-center space-x-2">
+        <Controller
+            name="isTrainingFaculty"
             control={control}
             render={({ field }) => (
-              <Select
-                onValueChange={field.onChange}
-                value={field.value === '' ? NO_SUPERVISOR_VALUE : field.value}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select supervisor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_SUPERVISOR_VALUE}>None</SelectItem>
-                  {potentialSupervisors.map(sup => (
-                    <SelectItem key={sup.id} value={sup.name}>{sup.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Switch
+                id="isTrainingFaculty"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+              />
             )}
           />
-          {errors.supervisor && <p className="text-sm text-destructive mt-1">{errors.supervisor.message}</p>}
-        </div>
+        <Label htmlFor="isTrainingFaculty">Is Training Faculty</Label>
       </div>
 
       <div className="flex justify-end pt-4">
@@ -338,4 +385,3 @@ export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: 
     </form>
   );
 }
-

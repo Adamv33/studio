@@ -2,8 +2,8 @@
 'use client';
 import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { mockInstructors, mockCourses } from '@/data/mockData';
-import type { Instructor, Course, PersonalDocument } from '@/types';
+import { mockInstructors, mockCourses, mockInstructors as allMockInstructors } from '@/data/mockData';
+import type { Instructor, Course, PersonalDocument, UserProfile } from '@/types';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Edit3, User, Mail, Phone, MapPin, Award, ShieldCheck, Briefcase, FileText, UploadCloud, Search as SearchIcon, Trash2 } from 'lucide-react';
@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
 
 const CertificationDisplay: React.FC<{ cert?: { name: string; issuedDate?: string; expiryDate?: string } }> = memo(({ cert }) => {
   if (!cert || (!cert.issuedDate && !cert.expiryDate)) return <span className="text-muted-foreground">Not specified</span>;
@@ -40,8 +41,36 @@ const CertificationDisplay: React.FC<{ cert?: { name: string; issuedDate?: strin
 });
 CertificationDisplay.displayName = 'CertificationDisplay';
 
+// Helper to check if current user can manage/edit the target instructor
+const canEditProfile = (currentUserProfile: UserProfile | null, targetInstructorId: string, targetInstructorManagedById?: string, allInstructorsList?: Instructor[]): boolean => {
+  if (!currentUserProfile) return false;
+  if (currentUserProfile.role === 'Admin') return true;
+  if (currentUserProfile.uid === targetInstructorId) return true; // Can edit self
 
-const PersonalDocumentsSection: React.FC<{ instructor: Instructor, onDocumentsChange: (docs: PersonalDocument[]) => void }> = memo(({ instructor, onDocumentsChange }) => {
+  if (currentUserProfile.role === 'TrainingCenterCoordinator') {
+    // Check if targetInstructor is in the TCC's hierarchy
+    let currentManagedById = targetInstructorManagedById;
+    const instructorBeingViewed = allInstructorsList?.find(i => i.id === targetInstructorId);
+    if (!instructorBeingViewed) return false; // Should not happen if data is consistent
+
+    currentManagedById = instructorBeingViewed.managedByInstructorId;
+
+    while (currentManagedById) {
+      if (currentManagedById === currentUserProfile.uid) return true;
+      const supervisor = allInstructorsList?.find(i => i.id === currentManagedById);
+      currentManagedById = supervisor?.managedByInstructorId;
+    }
+    return false;
+  }
+
+  if (currentUserProfile.role === 'TrainingSiteCoordinator') {
+    return targetInstructorManagedById === currentUserProfile.uid;
+  }
+  return false;
+};
+
+
+const PersonalDocumentsSection: React.FC<{ instructor: Instructor, onDocumentsChange: (docs: PersonalDocument[]) => void, canEdit: boolean }> = memo(({ instructor, onDocumentsChange, canEdit }) => {
   const [documents, setDocuments] = useState<PersonalDocument[]>(instructor.uploadedDocuments || []);
   const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
@@ -100,12 +129,14 @@ const PersonalDocumentsSection: React.FC<{ instructor: Instructor, onDocumentsCh
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Label htmlFor={`file-upload-${instructor.id}`} className="cursor-pointer flex items-center justify-center">
-              <UploadCloud className="mr-2 h-4 w-4" /> Upload Document
-              <Input id={`file-upload-${instructor.id}`} type="file" className="sr-only" onChange={handleFileUpload} />
-            </Label>
-          </Button>
+          {canEdit && (
+            <Button asChild variant="outline" className="w-full sm:w-auto">
+              <Label htmlFor={`file-upload-${instructor.id}`} className="cursor-pointer flex items-center justify-center">
+                <UploadCloud className="mr-2 h-4 w-4" /> Upload Document
+                <Input id={`file-upload-${instructor.id}`} type="file" className="sr-only" onChange={handleFileUpload} />
+              </Label>
+            </Button>
+          )}
         </div>
         {filteredDocuments.length > 0 ? (
           <ScrollArea className="h-[250px] pr-3">
@@ -123,16 +154,18 @@ const PersonalDocumentsSection: React.FC<{ instructor: Instructor, onDocumentsCh
                     </div>
                   </div>
                    <div className="flex items-center gap-1">
-                     {doc.fileUrl && doc.fileUrl.startsWith('blob:') && (
+                     {doc.fileUrl && doc.fileUrl.startsWith('blob:') && ( // Only show view for blob URLs (newly uploaded)
                         <Button variant="ghost" size="sm" asChild>
                            <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" download={doc.name}>
                              View
                            </a>
                         </Button>
                      )}
-                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full" onClick={() => handleDeleteDocument(doc.id)} aria-label={`Delete document ${doc.name}`}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {canEdit && (
+                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full" onClick={() => handleDeleteDocument(doc.id)} aria-label={`Delete document ${doc.name}`}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </li>
               ))}
@@ -152,33 +185,69 @@ export default function InstructorProfilePage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
-  const id = params.id as string;
+  const { currentUser, userProfile, loading: authLoading } = useAuth(); // Get current user
+  const id = params.id as string; // ID of the instructor profile being viewed
 
   const [instructor, setInstructor] = useState<Instructor | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [instructorCourses, setInstructorCourses] = useState<Course[]>([]);
 
   useEffect(() => {
-    const foundInstructor = mockInstructors.find(instr => instr.id === id);
+    const foundInstructor = allMockInstructors.find(instr => instr.id === id);
     if (foundInstructor) {
       setInstructor(foundInstructor); 
       const coursesTaught = mockCourses.filter(course => course.instructorId === id);
       setInstructorCourses(coursesTaught);
     } else {
-      router.push('/instructors');
+      // If instructor not found in mock data, redirect (in real app, this might be a 404)
+      // For now, only redirect if auth is not loading and user has a profile (meaning they are past initial checks)
+      if (!authLoading && userProfile) {
+        router.push('/instructors');
+      }
     }
-  }, [id, router]);
+  }, [id, router, authLoading, userProfile]);
+
+  const userCanEditThisProfile = useMemo(() => {
+    if (!userProfile || !instructor) return false;
+    return canEditProfile(userProfile, instructor.id, instructor.managedByInstructorId, allMockInstructors);
+  }, [userProfile, instructor]);
 
   const potentialSupervisors = useMemo(() => {
-    return mockInstructors
-      .filter(instr => (instr.role === 'TrainingCenterCoordinator' || instr.role === 'TrainingSiteCoordinator') && instr.id !== id)
-      .map(instr => ({ id: instr.id, name: instr.name }));
-  }, [id]);
+    if (!userProfile) return [];
+    // Admins can assign any TCC or TSC as supervisor.
+    // TCCs can assign TSCs they manage or themselves (if adding direct instructor).
+    // TSCs can assign themselves.
+    // Filter out the instructor being edited from potential supervisors.
+    return allMockInstructors
+      .filter(instr => {
+        if (instr.id === id) return false; // Cannot supervise self
+        if (userProfile.role === 'Admin') {
+          return ['TrainingCenterCoordinator', 'TrainingSiteCoordinator'].includes(instr.role);
+        }
+        if (userProfile.role === 'TrainingCenterCoordinator') {
+          // TCC can assign a TSC they manage, or themselves if adding direct instructor
+          return instr.role === 'TrainingSiteCoordinator' && instr.managedByInstructorId === userProfile.uid;
+        }
+        // TSCs don't typically choose supervisors in this context, it's their own TCC or Admin
+        return false; 
+      })
+      .map(instr => ({ id: instr.id, name: instr.name, role: instr.role as UserProfile['role'] }));
+  }, [id, userProfile]);
 
-  const handleEditToggle = useCallback(() => setIsEditing(prev => !prev), []);
+  const handleEditToggle = useCallback(() => {
+    if (userCanEditThisProfile) {
+      setIsEditing(prev => !prev);
+    } else {
+      toast({ title: "Permission Denied", description: "You do not have permission to edit this profile.", variant: "destructive"});
+    }
+  }, [userCanEditThisProfile, toast]);
 
   const handleFormSubmit = useCallback((data: Instructor) => {
-    // Revoke old blob URL if it exists and a new one is provided or if it's cleared
+    if (!userCanEditThisProfile) {
+      toast({ title: "Permission Denied", description: "You do not have permission to save these changes.", variant: "destructive"});
+      return;
+    }
+
     if (instructor?.profilePictureUrl && instructor.profilePictureUrl.startsWith('blob:') &&
         (!data.profilePictureUrl || data.profilePictureUrl !== instructor.profilePictureUrl)) {
       URL.revokeObjectURL(instructor.profilePictureUrl);
@@ -186,11 +255,11 @@ export default function InstructorProfilePage() {
     
     setInstructor(prevInstructor => {
       if (!prevInstructor) return null; 
-      const updatedInstructor = { ...prevInstructor, ...data }; // data from form includes profilePictureUrl
+      const updatedInstructor = { ...prevInstructor, ...data }; 
       
-      const index = mockInstructors.findIndex(i => i.id === id);
+      const index = allMockInstructors.findIndex(i => i.id === id);
       if (index !== -1) {
-        mockInstructors[index] = updatedInstructor; 
+        allMockInstructors[index] = updatedInstructor; 
       }
       return updatedInstructor; 
     });
@@ -200,15 +269,15 @@ export default function InstructorProfilePage() {
         description: `${data.name}'s profile has been successfully updated.`,
     });
     setIsEditing(false);
-  }, [id, toast, instructor?.profilePictureUrl]);
+  }, [id, toast, instructor?.profilePictureUrl, userCanEditThisProfile]);
   
   const handleDocumentsChange = useCallback((updatedDocs: PersonalDocument[]) => {
     setInstructor(prevInstructor => {
         if (prevInstructor) {
             const updatedInstructorData = { ...prevInstructor, uploadedDocuments: updatedDocs };
-            const index = mockInstructors.findIndex(i => i.id === prevInstructor.id);
+            const index = allMockInstructors.findIndex(i => i.id === prevInstructor.id);
             if (index !== -1) {
-                mockInstructors[index] = updatedInstructorData; 
+                allMockInstructors[index] = updatedInstructorData; 
             }
             return updatedInstructorData;
         }
@@ -216,46 +285,54 @@ export default function InstructorProfilePage() {
     });
   }, []);
 
-  // Cleanup blob URL on component unmount if it was created by this component instance
   useEffect(() => {
     return () => {
       if (instructor?.profilePictureUrl && instructor.profilePictureUrl.startsWith('blob:')) {
-        // This cleanup is tricky because the blob URL might be from another session if not careful
-        // For a robust solution, blob URLs should ideally be managed more centrally or avoided for long-term state
-        // URL.revokeObjectURL(instructor.profilePictureUrl); // Potentially causes issues if URL is re-used. Manage more carefully or omit general cleanup.
+        // URL.revokeObjectURL(instructor.profilePictureUrl); // Avoid over-aggressive revoke
       }
     };
   }, [instructor?.profilePictureUrl]);
 
 
-  if (!instructor) {
+  if (authLoading || !instructor) {
     return <div className="flex justify-center items-center h-screen"><p>Loading instructor data...</p></div>;
   }
+  
+  // Additional check: if user is an instructor and tries to view another instructor's profile
+  if (userProfile?.role === 'Instructor' && userProfile.uid !== id) {
+     toast({ title: "Access Denied", description: "You can only view your own profile.", variant: "destructive"});
+     router.push('/instructors'); // or router.push(`/instructors/${userProfile.uid}`);
+     return <div className="flex justify-center items-center h-screen"><p>Redirecting...</p></div>;
+  }
+
 
   return (
     <div>
       <PageHeader
         title={isEditing ? `Editing: ${instructor.name}` : instructor.name}
-        description={isEditing ? 'Update instructor details below.' : `Instructor ID: ${instructor.instructorId}`}
+        description={isEditing ? 'Update instructor details below.' : `Role: ${instructor.role.replace(/([A-Z])/g, ' $1').trim()} | ID: ${instructor.instructorId}`}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => router.back()}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Back to List
             </Button>
-            <Button onClick={handleEditToggle} className="bg-accent hover:bg-accent/90">
-              <Edit3 className="mr-2 h-4 w-4" /> {isEditing ? 'Cancel Edit' : 'Edit Profile'}
-            </Button>
+            {userCanEditThisProfile && (
+              <Button onClick={handleEditToggle} className="bg-accent hover:bg-accent/90">
+                <Edit3 className="mr-2 h-4 w-4" /> {isEditing ? 'Cancel Edit' : 'Edit Profile'}
+              </Button>
+            )}
           </div>
         }
       />
 
-      {isEditing ? (
+      {isEditing && userCanEditThisProfile ? (
         <Card>
           <CardContent className="p-6">
             <InstructorForm 
               initialData={instructor} 
               onSubmit={handleFormSubmit}
               potentialSupervisors={potentialSupervisors} 
+              currentUserProfile={userProfile}
             />
           </CardContent>
         </Card>
@@ -277,15 +354,16 @@ export default function InstructorProfilePage() {
                   height={120}
                   className="rounded-lg border object-cover shadow-sm"
                   data-ai-hint="instructor portrait"
-                  unoptimized={instructor.profilePictureUrl?.startsWith('blob:')} // Important for blob URLs
+                  unoptimized={instructor.profilePictureUrl?.startsWith('blob:')} 
                 />
                 <div className="flex-1">
                   <CardTitle className="text-2xl font-headline mb-1">{instructor.name}</CardTitle>
                   <CardDescription className="text-md">ID: {instructor.instructorId}</CardDescription>
-                  <div className="mt-2 flex gap-2 items-center">
+                  <div className="mt-2 flex gap-2 items-center flex-wrap">
                     <Badge variant={instructor.status === 'Active' ? 'default' : instructor.status === 'Pending' ? 'secondary': 'destructive'} className="capitalize">
                       {instructor.status}
                     </Badge>
+                     <Badge variant="outline" className="capitalize">{instructor.role.replace(/([A-Z])/g, ' $1').trim()}</Badge>
                     {instructor.isTrainingFaculty && <Badge variant="outline">Training Faculty</Badge>}
                   </div>
                 </div>
@@ -300,13 +378,13 @@ export default function InstructorProfilePage() {
                  <div>
                   <h4 className="font-semibold mb-2 text-primary flex items-center"><Briefcase className="mr-2 h-5 w-5"/>Professional Details</h4>
                   <p className="text-sm mb-1">Role: {instructor.role.replace(/([A-Z])/g, ' $1').trim()}</p>
-                  {instructor.supervisor && <p className="text-sm mb-1">Supervisor: {instructor.supervisor}</p>}
+                  {instructor.supervisor && <p className="text-sm mb-1">Supervisor: {mockInstructors.find(i => i.id === instructor.managedByInstructorId)?.name || instructor.supervisor}</p>}
                   <p className="text-sm">Training Faculty: {instructor.isTrainingFaculty ? 'Yes' : 'No'}</p>
                 </div>
                 <div className="md:col-span-2">
                   <h4 className="font-semibold mb-3 text-primary flex items-center"><Award className="mr-2 h-5 w-5"/>Certifications</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {instructor.certifications && Object.entries(instructor.certifications).map(([key, cert]) => (
+                    {instructor.certifications && Object.keys(instructor.certifications).length > 0 && Object.entries(instructor.certifications).map(([key, cert]) => (
                       <Card key={key} className="p-3 bg-muted/30">
                         <CardHeader className="p-0 pb-1">
                            <CardTitle className="text-sm font-semibold capitalize flex items-center"><ShieldCheck className="mr-1.5 h-4 w-4 text-accent"/>{cert?.name || key}</CardTitle>
@@ -326,7 +404,7 @@ export default function InstructorProfilePage() {
           </TabsContent>
 
           <TabsContent value="documents">
-             <PersonalDocumentsSection instructor={instructor} onDocumentsChange={handleDocumentsChange} />
+             <PersonalDocumentsSection instructor={instructor} onDocumentsChange={handleDocumentsChange} canEdit={userCanEditThisProfile} />
           </TabsContent>
 
           <TabsContent value="courses">

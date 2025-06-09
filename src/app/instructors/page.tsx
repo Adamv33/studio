@@ -4,9 +4,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/PageHeader';
-import { mockInstructors } from '@/data/mockData';
-import type { Instructor } from '@/types';
-import { PlusCircle, Filter } from 'lucide-react';
+import { mockInstructors as allMockInstructors } from '@/data/mockData'; // Renamed to avoid conflict
+import type { Instructor, UserProfile } from '@/types';
+import { PlusCircle, Filter, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { InstructorCard } from '@/components/instructors/InstructorCard';
 import {
@@ -18,17 +18,32 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { Search } from 'lucide-react'; 
+import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
+
+// Helper function to get all instructors managed by a supervisor, recursively
+const getManagedInstructorsRecursive = (supervisorId: string, instructors: Instructor[], allInstructors: Instructor[]): Instructor[] => {
+  let managed: Instructor[] = [];
+  const directReports = allInstructors.filter(i => i.managedByInstructorId === supervisorId);
+  managed = managed.concat(directReports);
+  directReports.forEach(report => {
+    if (report.role === 'TrainingCenterCoordinator' || report.role === 'TrainingSiteCoordinator') {
+      managed = managed.concat(getManagedInstructorsRecursive(report.id, [], allInstructors));
+    }
+  });
+  return Array.from(new Set(managed.map(i => i.id))).map(id => managed.find(i => i.id === id)!); // Deduplicate
+};
+
 
 export default function InstructorsPage() {
-  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const { currentUser, userProfile, loading: authLoading } = useAuth(); // Get current user and profile
+  const [instructors, setInstructors] = useState<Instructor[]>([]); // This will hold all instructors initially loaded
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string[]>(['Active', 'Inactive', 'Pending']);
   const { toast } = useToast();
 
-
   useEffect(() => {
-    setInstructors(mockInstructors);
+    // Initially, load all instructors. Filtering will happen in useMemo.
+    setInstructors(allMockInstructors);
   }, []);
 
   const handleStatusFilterChange = useCallback((status: string) => {
@@ -37,25 +52,76 @@ export default function InstructorsPage() {
     );
   }, []);
 
+  const canAddInstructor = useMemo(() => {
+    if (!userProfile) return false;
+    return ['Admin', 'TrainingCenterCoordinator', 'TrainingSiteCoordinator'].includes(userProfile.role);
+  }, [userProfile]);
+
   const filteredInstructors = useMemo(() => {
-    return instructors
+    if (authLoading || !userProfile) {
+      return []; // Wait for auth to load or if no profile, show nothing (or loading state)
+    }
+
+    let displayableInstructors: Instructor[] = [];
+
+    switch (userProfile.role) {
+      case 'Admin':
+        displayableInstructors = instructors;
+        break;
+      case 'TrainingCenterCoordinator':
+        // TCC sees self and all instructors they manage directly or indirectly
+        const tccSelf = instructors.find(i => i.id === userProfile.uid);
+        const managedByTCC = getManagedInstructorsRecursive(userProfile.uid, [], instructors);
+        displayableInstructors = tccSelf ? [tccSelf, ...managedByTCC] : managedByTCC;
+        break;
+      case 'TrainingSiteCoordinator':
+        // TSC sees self and all instructors they directly manage
+        const tscSelf = instructors.find(i => i.id === userProfile.uid);
+        const managedByTSC = instructors.filter(i => i.managedByInstructorId === userProfile.uid);
+        displayableInstructors = tscSelf ? [tscSelf, ...managedByTSC] : managedByTSC;
+        break;
+      case 'Instructor':
+        // Instructor sees only themselves on this page
+        const instructorSelf = instructors.find(i => i.id === userProfile.uid);
+        displayableInstructors = instructorSelf ? [instructorSelf] : [];
+        break;
+      default:
+        displayableInstructors = [];
+    }
+    
+    // Deduplicate just in case (e.g., self is also in managed list)
+    displayableInstructors = Array.from(new Set(displayableInstructors.map(i => i.id))).map(id => displayableInstructors.find(i => i.id === id)!);
+
+    return displayableInstructors
       .filter(instructor =>
-        instructor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (instructor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         instructor.emailAddress.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        instructor.instructorId.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      .filter(instructor => statusFilter.includes(instructor.status));
-  }, [instructors, searchTerm, statusFilter]);
+        instructor.instructorId.toLowerCase().includes(searchTerm.toLowerCase())) &&
+        statusFilter.includes(instructor.status)
+      );
+  }, [instructors, searchTerm, statusFilter, userProfile, authLoading]);
+
 
   const handleDeleteInstructor = useCallback((id: string) => {
+    // In a real app, this would be an API call and then update state based on response.
+    // For mock data, we filter out from the main `allMockInstructors` and update local state.
+    // This deletion logic should also respect RBAC in a real scenario (API would enforce).
+    
+    // Update the main source if using mockData directly (not best practice for real app)
+    const index = allMockInstructors.findIndex(i => i.id === id);
+    if (index > -1) allMockInstructors.splice(index, 1);
+    
     setInstructors(prev => prev.filter(instructor => instructor.id !== id));
     toast({
         title: "Instructor Deleted",
-        description: `Instructor with ID ${id} has been removed.`,
+        description: `Instructor has been removed.`,
         variant: "destructive"
     });
   }, [toast]);
 
+  if (authLoading) {
+    return <div className="text-center py-10"><p className="text-muted-foreground text-lg">Loading instructors...</p></div>;
+  }
 
   return (
     <div>
@@ -63,11 +129,13 @@ export default function InstructorsPage() {
         title="Instructors"
         description="Manage instructor profiles, certifications, and documents."
         actions={
-          <Link href="/instructors/new" passHref>
-            <Button className="bg-primary hover:bg-primary/90">
-              <PlusCircle className="mr-2 h-4 w-4" /> Add New Instructor
-            </Button>
-          </Link>
+          canAddInstructor ? (
+            <Link href="/instructors/new" passHref>
+              <Button className="bg-primary hover:bg-primary/90">
+                <PlusCircle className="mr-2 h-4 w-4" /> Add New Instructor
+              </Button>
+            </Link>
+          ) : null
         }
       />
 
@@ -107,12 +175,17 @@ export default function InstructorsPage() {
       {filteredInstructors.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredInstructors.map((instructor) => (
-            <InstructorCard key={instructor.id} instructor={instructor} onDelete={handleDeleteInstructor} />
+            <InstructorCard 
+              key={instructor.id} 
+              instructor={instructor} 
+              onDelete={handleDeleteInstructor} 
+              currentUserProfile={userProfile} // Pass current user profile for permission checks
+            />
           ))}
         </div>
       ) : (
         <div className="text-center py-10">
-          <p className="text-muted-foreground text-lg">No instructors found matching your criteria.</p>
+          <p className="text-muted-foreground text-lg">No instructors found matching your criteria or accessible to you.</p>
         </div>
       )}
     </div>

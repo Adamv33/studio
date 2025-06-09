@@ -1,12 +1,37 @@
 
 import type { Instructor, Course, CurriculumDocument, PersonalDocument, UserRole } from '@/types';
 
-// Let's define a Training Center Coordinator
-const trainingCenterCoordinatorId = 'instr_tcc_001';
+// Define IDs for easier referencing
+const adminUserId = 'admin_user_001';
+const tccUserId = 'tcc_user_001';
+const tscCarterId = 'tsc_carter_001';
+const instructorLeeId = 'instr_lee_002';
+const instructorRodriguezId = 'instr_rodriguez_003';
+
 
 export const mockInstructors: Instructor[] = [
+  // Admin User (SuperUser)
+  // Note: For a real app, an Admin might not be an "Instructor" in this list 
+  // unless they also instruct. Their powers come from their UserProfile.role.
+  // For mock data, we can represent them as an instructor for simplicity in testing list views.
   {
-    id: trainingCenterCoordinatorId,
+    id: adminUserId, // This should match their Firebase Auth UID
+    name: 'Admin User',
+    instructorId: 'ADMIN000',
+    status: 'Active',
+    phoneNumber: '555-ADMIN',
+    mailingAddress: '1 Admin Way, Control City, USA',
+    emailAddress: 'admin@example.com',
+    certifications: {},
+    isTrainingFaculty: true, 
+    supervisor: 'System',
+    profilePictureUrl: 'https://placehold.co/100x100.png',
+    role: 'Admin',
+    // managedByInstructorId: undefined, // Admin is top-level
+    uploadedDocuments: []
+  },
+  {
+    id: tccUserId,
     name: 'Dr. Alan Grant (TCC)',
     instructorId: 'AG0000',
     status: 'Active',
@@ -18,16 +43,16 @@ export const mockInstructors: Instructor[] = [
       acls: { name: 'ACLS Provider', expiryDate: '2026-01-01', issuedDate: '2024-01-01' },
     },
     isTrainingFaculty: true,
-    supervisor: 'EMskillz LLC Board', // Ultimate supervisor
+    supervisor: 'Admin User', // TCC supervised by Admin/System
     profilePictureUrl: 'https://placehold.co/100x100.png',
     role: 'TrainingCenterCoordinator',
-    // managedByInstructorId: undefined, // TCC is top-level
+    managedByInstructorId: adminUserId, // TCC managed by Admin
     uploadedDocuments: [
-       { id: 'doc_tcc_001', name: 'TCC_Credentials.pdf', type: 'other', uploadDate: '2024-01-05', instructorId: trainingCenterCoordinatorId, fileUrl: '#', size: '300KB' },
+       { id: 'doc_tcc_001', name: 'TCC_Credentials.pdf', type: 'other', uploadDate: '2024-01-05', instructorId: tccUserId, fileUrl: '#', size: '300KB' },
     ]
   },
   {
-    id: 'instr_001',
+    id: tscCarterId,
     name: 'Dr. Emily Carter (TSC)',
     instructorId: 'EC1001',
     status: 'Active',
@@ -41,17 +66,17 @@ export const mockInstructors: Instructor[] = [
       pals: { name: 'PALS Provider', expiryDate: '2025-02-10', issuedDate: '2023-02-10' },
     },
     isTrainingFaculty: true,
-    supervisor: 'Dr. Alan Grant (TCC)', // Supervised by TCC
+    supervisor: 'Dr. Alan Grant (TCC)', // Display name
     profilePictureUrl: 'https://placehold.co/100x100.png',
-    role: 'TrainingSiteCoordinator',
-    managedByInstructorId: trainingCenterCoordinatorId, // Managed by the TCC
+    role: 'TrainingSiteCoordinator', // Training Faculty
+    managedByInstructorId: tccUserId, // Managed by Dr. Alan Grant (TCC)
     uploadedDocuments: [
-      { id: 'doc_001', name: 'Resume_EC.pdf', type: 'resume', uploadDate: '2023-01-10', instructorId: 'instr_001', fileUrl: '#', size: '256KB' },
-      { id: 'doc_002', name: 'BLS_Card_EC.pdf', type: 'certification_card', uploadDate: '2023-06-22', instructorId: 'instr_001', fileUrl: '#', size: '128KB' },
+      { id: 'doc_001', name: 'Resume_EC.pdf', type: 'resume', uploadDate: '2023-01-10', instructorId: tscCarterId, fileUrl: '#', size: '256KB' },
+      { id: 'doc_002', name: 'BLS_Card_EC.pdf', type: 'certification_card', uploadDate: '2023-06-22', instructorId: tscCarterId, fileUrl: '#', size: '128KB' },
     ]
   },
   {
-    id: 'instr_002',
+    id: instructorLeeId,
     name: 'Johnathan Lee',
     instructorId: 'JL1002',
     status: 'Active',
@@ -63,16 +88,16 @@ export const mockInstructors: Instructor[] = [
       bls: { name: 'BLS Provider', expiryDate: '2025-01-25', issuedDate: '2023-01-25' },
     },
     isTrainingFaculty: false,
-    supervisor: 'Dr. Emily Carter (TSC)', // Supervised by TSC
+    supervisor: 'Dr. Emily Carter (TSC)', // Display name
     profilePictureUrl: 'https://placehold.co/100x100.png',
     role: 'Instructor',
-    managedByInstructorId: 'instr_001', // Managed by Dr. Emily Carter (TSC)
+    managedByInstructorId: tscCarterId, // Managed by Dr. Emily Carter (TSC)
      uploadedDocuments: [
-      { id: 'doc_003', name: 'RenewalPacket_JL.pdf', type: 'renewal_packet', uploadDate: '2024-03-15', instructorId: 'instr_002', fileUrl: '#', size: '512KB' },
+      { id: 'doc_003', name: 'RenewalPacket_JL.pdf', type: 'renewal_packet', uploadDate: '2024-03-15', instructorId: instructorLeeId, fileUrl: '#', size: '512KB' },
     ]
   },
   {
-    id: 'instr_003',
+    id: instructorRodriguezId,
     name: 'Maria Rodriguez',
     instructorId: 'MR1003',
     status: 'Inactive',
@@ -80,13 +105,13 @@ export const mockInstructors: Instructor[] = [
     mailingAddress: '789 Care Blvd, Aidtown, FL 33001',
     emailAddress: 'maria.rodriguez@example.com',
     certifications: {
-      bls: { name: 'BLS Provider', expiryDate: '2023-05-10', issuedDate: '2021-05-10' }, // Expired
+      bls: { name: 'BLS Provider', expiryDate: '2023-05-10', issuedDate: '2021-05-10' }, 
     },
     isTrainingFaculty: true,
-    supervisor: 'Dr. Emily Carter (TSC)', // Also supervised by TSC
+    supervisor: 'Dr. Emily Carter (TSC)', // Display name
     profilePictureUrl: 'https://placehold.co/100x100.png',
     role: 'Instructor',
-    managedByInstructorId: 'instr_001', // Managed by Dr. Emily Carter (TSC)
+    managedByInstructorId: tscCarterId, // Managed by Dr. Emily Carter (TSC)
   },
 ];
 
@@ -99,10 +124,10 @@ export const mockCourses: Course[] = [
     studentLastName: 'Smith',
     studentEmail: 'alice.smith@example.com',
     studentPhone: '555-0201',
-    instructorId: 'instr_002', // Johnathan Lee (Instructor)
+    instructorId: instructorLeeId, 
     instructorName: 'Johnathan Lee',
     trainingLocationAddress: '10 Life Saving Dr, Wellness City, TX',
-    courseType: 'BLS Provider', // Corrected
+    courseType: 'BLS Provider', 
     description: 'Basic Life Support (BLS) training for healthcare professionals and first responders.',
   },
   {
@@ -113,7 +138,7 @@ export const mockCourses: Course[] = [
     studentLastName: 'Johnson',
     studentEmail: 'bob.johnson@example.com',
     studentPhone: '555-0202',
-    instructorId: 'instr_002', // Johnathan Lee (Instructor)
+    instructorId: instructorLeeId, 
     instructorName: 'Johnathan Lee',
     trainingLocationAddress: '20 Health First Rd, Medville, CA',
     courseType: 'Heartsaver First Aid CPR AED',
@@ -122,12 +147,12 @@ export const mockCourses: Course[] = [
   {
     id: 'course_003',
     eCardCode: 'ECARD003',
-    courseDate: '2023-11-10', // Past course
+    courseDate: '2023-11-10', 
     studentFirstName: 'Carol',
     studentLastName: 'Williams',
     studentEmail: 'carol.w@example.com',
     studentPhone: '555-0203',
-    instructorId: 'instr_001', // Dr. Emily Carter (TSC)
+    instructorId: tscCarterId, 
     instructorName: 'Dr. Emily Carter (TSC)',
     trainingLocationAddress: '10 Life Saving Dr, Wellness City, TX',
     courseType: 'ACLS Provider',
@@ -141,7 +166,7 @@ export const mockCourses: Course[] = [
     studentLastName: 'Brown',
     studentEmail: 'david.brown@example.com',
     studentPhone: '555-0204',
-    instructorId: 'instr_001', // Dr. Emily Carter (TSC)
+    instructorId: tscCarterId, 
     instructorName: 'Dr. Emily Carter (TSC)',
     trainingLocationAddress: 'Community Center, Wellness City, TX',
     courseType: 'BLS Provider',
@@ -182,3 +207,7 @@ export const mockCurriculum: CurriculumDocument[] = [
   },
   { id: 'curr_d_007', name: 'General Instructor Guidelines.pdf', type: 'pdf', path: '#', size: '500KB', lastModified: '2023-10-01', description: 'Overall guidelines for all instructors.' },
 ];
+// Ensure that when testing, the `currentUser.uid` in `AuthContext` corresponds to one of these IDs 
+// and that their `UserProfile` in Firestore has the matching role and `managedByInstructorId`.
+// For example, if testing as Dr. Emily Carter (TSC), her UID in Auth and Firestore should be `tsc_carter_001`,
+// her role `TrainingSiteCoordinator`, and `managedByInstructorId` should be `tcc_user_001`.
