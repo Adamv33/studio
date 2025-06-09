@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Users, BookOpen, BarChart3, FolderKanban, MessageSquare, Settings } from 'lucide-react';
+import { Home, Users, BookOpen, BarChart3, FolderKanban, MessageSquare, Settings, ClipboardSignature } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 
@@ -14,6 +14,7 @@ const navItems = [
   { href: '/courses/stats', label: 'Statistics', icon: BarChart3 },
   { href: '/curriculum', label: 'Curriculum', icon: FolderKanban },
   { href: '/chat', label: 'Chat', icon: MessageSquare },
+  { href: '/onboarding-request', label: 'Request Access', icon: ClipboardSignature },
   // { href: '/settings', label: 'Settings', icon: Settings }, // Example for future
 ];
 
