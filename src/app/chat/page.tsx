@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { Suspense, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,16 +17,16 @@ import { format } from 'date-fns';
 interface ChatMessage {
   id: string;
   text: string;
-  senderId: string; // Store sender ID to compare with current user and partner
+  senderId: string; 
   senderName: string;
   senderProfilePictureUrl?: string;
   timestamp: Date;
 }
 
-// Assume the "current logged-in user" is the first instructor from mockData for this prototype
 const currentUser: Instructor = mockInstructors.length > 0 ? mockInstructors[0] : { id: 'tempUser', name: 'You', profilePictureUrl: 'https://placehold.co/40x40.png', emailAddress: '', instructorId: '', isTrainingFaculty: false, mailingAddress: '', phoneNumber: '', role: 'Instructor', status: 'Active', certifications: {} };
 
-export default function ChatPage() {
+// Component containing the actual chat logic using useSearchParams
+function ChatInterface() {
   const [allMessages, setAllMessages] = useState<Record<string, ChatMessage[]>>({});
   const [newMessage, setNewMessage] = useState('');
   const [chatPartner, setChatPartner] = useState<Instructor | null>(null);
@@ -66,7 +66,7 @@ export default function ChatPage() {
       id: `msg_${Date.now()}`,
       text: newMessage,
       senderId: currentUser.id,
-      senderName: currentUser.name, // Will be displayed as "You" if senderId matches currentUser.id
+      senderName: currentUser.name, 
       senderProfilePictureUrl: currentUser.profilePictureUrl,
       timestamp: new Date(),
     };
@@ -79,7 +79,7 @@ export default function ChatPage() {
       };
     });
     setNewMessage('');
-  }, [newMessage, currentChatKey, chatPartner, currentUser]);
+  }, [newMessage, currentChatKey, chatPartner]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -182,5 +182,14 @@ export default function ChatPage() {
         <strong>Note:</strong> This chat is a prototype. Messages are not saved persistently and are only visible in your current browser session for active chats.
       </p>
     </div>
+  );
+}
+
+// Default export for the page, wrapping ChatInterface with Suspense
+export default function ChatPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center h-screen"><p className="text-lg text-muted-foreground">Loading Chat...</p></div>}>
+      <ChatInterface />
+    </Suspense>
   );
 }
