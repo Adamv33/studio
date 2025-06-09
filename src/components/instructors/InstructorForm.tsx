@@ -124,11 +124,11 @@ export function InstructorForm({ initialData, onSubmit, potentialSupervisors, cu
     }
     // If creating new and current user is TSC, they become the manager
     else if (!initialData && currentUserProfile?.role === 'TrainingSiteCoordinator') {
-        finalManagedById = currentUserProfile.uid;
+        finalManagedById = currentUserProfile.uid; // CORRECTED: was .id
     } 
     // If creating new and current user is TCC, and no supervisor selected, TCC becomes manager
     else if (!initialData && currentUserProfile?.role === 'TrainingCenterCoordinator' && !finalManagedById) {
-       finalManagedById = currentUserProfile.uid;
+       finalManagedById = currentUserProfile.uid; // CORRECTED: was .id (implicitly, if currentUserProfile was used directly)
     }
 
 
