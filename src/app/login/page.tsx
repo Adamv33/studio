@@ -18,7 +18,7 @@ import { AlertCircle, LogIn } from 'lucide-react';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
-  password: z.string().min(1, { message: 'Password cannot be empty' }),
+  password: z.string().min(1, { message: 'Password cannot be empty' }), // Min 1 to ensure it's not empty, Firebase handles actual password rules
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -53,6 +53,7 @@ export default function LoginPage() {
         router.push('/'); 
       } else if (result.error) {
         let errorMessage = result.error.message || 'An unknown error occurred during login.';
+        // Firebase often returns 'auth/invalid-credential' for both wrong email/password
         if (result.error.code === 'auth/user-not-found' || result.error.code === 'auth/wrong-password' || result.error.code === 'auth/invalid-credential') {
           errorMessage = 'Invalid email or password. Please try again.';
         }
@@ -64,6 +65,8 @@ export default function LoginPage() {
         });
       }
     } catch (error: any) {
+      // This catch block might be redundant if the login function already catches and returns errors.
+      // However, it's good for unexpected issues.
       const errorMessage = error.message || 'An unexpected error occurred. Please try again.';
       setFormError(errorMessage);
       toast({
