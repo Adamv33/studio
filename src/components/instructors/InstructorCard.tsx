@@ -72,10 +72,10 @@ export const InstructorCard = memo(function InstructorCard({ instructor, onDelet
     return canManageInstructor(currentUserProfile, instructor, mockInstructors); // Use mockInstructors or pass allInstructors if available
   }, [currentUserProfile, instructor]);
   
-  // Disable chat with self. For mock, check against the first mock instructor if it's the "current user".
-  // In a real app, `currentUserProfile.uid` would be used.
+  // Disable chat with self.
   const isSelf = currentUserProfile?.uid === instructor.id;
   // A simplified mock "current user" for chat button disabling logic if needed, or rely on currentUserProfile
+  // THIS IS THE CORRECTED LINE:
   const disableChatWithSelf = isSelf || (mockInstructors.length > 0 && instructor.id === mockInstructors[0]?.id && currentUserProfile?.uid === mockInstructors[0]?.id);
 
 
