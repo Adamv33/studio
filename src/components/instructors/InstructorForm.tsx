@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Instructor } from '@/types';
+import { Instructor, Certification, PersonalDocument, UserRole } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,10 +29,11 @@ const instructorSchema = z.object({
     bls: z.object({ name: z.string(), issuedDate: z.string().optional(), expiryDate: z.string().optional() }).optional(),
     acls: z.object({ name: z.string(), issuedDate: z.string().optional(), expiryDate: z.string().optional() }).optional(),
     pals: z.object({ name: z.string(), issuedDate: z.string().optional(), expiryDate: z.string().optional() }).optional(),
-  }).optional(),
+  }).optional(), // Making the whole certifications object optional in form data
   isTrainingFaculty: z.boolean(),
   supervisor: z.string().optional(),
-  profilePictureUrl: z.string().optional(), // Added for profile picture
+  profilePictureUrl: z.string().optional(),
+  role: z.custom<UserRole>().optional(), // Role can be optional in the form, will default later
 });
 
 type InstructorFormData = z.infer<typeof instructorSchema>;
@@ -44,7 +45,7 @@ interface InstructorFormProps {
 }
 
 const certificationTypes: Array<keyof NonNullable<Instructor['certifications']>> = ['heartsaver', 'bls', 'acls', 'pals'];
-const NO_SUPERVISOR_VALUE = "_none_"; // Special value for "None" option
+const NO_SUPERVISOR_VALUE = "_none_"; 
 
 export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: InstructorFormProps) {
   const { register, handleSubmit, control, formState: { errors }, watch, setValue } = useForm<InstructorFormData>({
@@ -56,15 +57,16 @@ export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: 
       phoneNumber: initialData?.phoneNumber || '',
       mailingAddress: initialData?.mailingAddress || '',
       emailAddress: initialData?.emailAddress || '',
-      certifications: {
+      certifications: { // Ensure certifications object is always present in form state
         heartsaver: initialData?.certifications?.heartsaver || { name: 'Heartsaver' },
         bls: initialData?.certifications?.bls || { name: 'BLS' },
         acls: initialData?.certifications?.acls || { name: 'ACLS' },
         pals: initialData?.certifications?.pals || { name: 'PALS' },
       },
       isTrainingFaculty: initialData?.isTrainingFaculty || false,
-      supervisor: initialData?.supervisor || '', // Form state uses '' for no supervisor
+      supervisor: initialData?.supervisor || '',
       profilePictureUrl: initialData?.profilePictureUrl || '',
+      role: initialData?.role || 'Instructor',
     },
   });
 
@@ -81,7 +83,7 @@ export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: 
     const file = event.target.files?.[0];
     if (file) {
       if (imagePreview && imagePreview.startsWith('blob:')) {
-        URL.revokeObjectURL(imagePreview); // Clean up previous blob URL
+        URL.revokeObjectURL(imagePreview); 
       }
       const newPreviewUrl = URL.createObjectURL(file);
       setImagePreview(newPreviewUrl);
@@ -90,16 +92,23 @@ export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: 
   };
 
   const processSubmit = (data: InstructorFormData) => {
-    // Convert special "_none_" value back to an empty string for data storage
     const supervisorValue = data.supervisor === NO_SUPERVISOR_VALUE ? '' : data.supervisor;
 
     const completeData: Instructor = {
-      ...initialData, // spread initial data to keep id and other non-form fields
-      ...data, // spread form data
+      ...initialData, 
+      ...data, 
       supervisor: supervisorValue,
       id: initialData?.id || `instr_${Date.now()}`,
-      profilePictureUrl: imagePreview || data.profilePictureUrl || '', // Ensure preview is prioritized if set
-      uploadedDocuments: initialData?.uploadedDocuments || [], // Preserve existing documents
+      profilePictureUrl: imagePreview || data.profilePictureUrl || '', 
+      uploadedDocuments: initialData?.uploadedDocuments || [],
+      // Ensure certifications is always an object, falling back to initialData or a default structure
+      certifications: data.certifications || initialData?.certifications || {
+        heartsaver: { name: 'Heartsaver' },
+        bls: { name: 'BLS' },
+        acls: { name: 'ACLS' },
+        pals: { name: 'PALS' },
+      },
+      role: data.role || initialData?.role || 'Instructor', // Ensure role has a default
     };
     onSubmit(completeData);
   };
@@ -181,12 +190,39 @@ export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: 
         </div>
       </div>
 
+       <div>
+          <Label htmlFor="role">Role</Label>
+          <Controller
+            name="role"
+            control={control}
+            render={({ field }) => (
+              <Select onValueChange={field.onChange} value={field.value || 'Instructor'}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Instructor">Instructor</SelectItem>
+                  <SelectItem value="TrainingSiteCoordinator">Training Site Coordinator</SelectItem>
+                  <SelectItem value="TrainingCenterCoordinator">Training Center Coordinator</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.role && <p className="text-sm text-destructive mt-1">{errors.role.message}</p>}
+        </div>
+
 
       <h3 className="text-lg font-medium font-headline border-b pb-2 mb-4">Certifications</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
         {certificationTypes.map((certType) => (
           <div key={certType} className="space-y-2 p-3 border rounded-md">
-            <h4 className="font-semibold capitalize">{watchedCerts?.[certType]?.name || certType}</h4>
+            <h4 className="font-semibold capitalize">{watchedCerts?.[certType]?.name || certType.charAt(0).toUpperCase() + certType.slice(1)}</h4>
+            <Controller
+                name={`certifications.${certType}.name`}
+                control={control}
+                defaultValue={certType.charAt(0).toUpperCase() + certType.slice(1)}
+                render={({ field }) => <input type="hidden" {...field} />}
+            />
             <div>
               <Label htmlFor={`${certType}IssuedDate`}>Issued Date</Label>
               <Controller
@@ -249,13 +285,6 @@ export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: 
                 )}
               />
             </div>
-            {/* Hidden input to store the name, ensuring it's part of the form data if needed */}
-            <Controller
-                name={`certifications.${certType}.name`}
-                control={control}
-                defaultValue={certType.charAt(0).toUpperCase() + certType.slice(1)}
-                render={({ field }) => <input type="hidden" {...field} />}
-            />
           </div>
         ))}
       </div>
@@ -283,7 +312,6 @@ export function InstructorForm({ initialData, onSubmit, potentialSupervisors }: 
             render={({ field }) => (
               <Select
                 onValueChange={field.onChange}
-                // If form state for supervisor is '', map to NO_SUPERVISOR_VALUE for Select
                 value={field.value === '' ? NO_SUPERVISOR_VALUE : field.value}
               >
                 <SelectTrigger>
