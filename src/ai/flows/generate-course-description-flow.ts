@@ -48,17 +48,23 @@ const generateCourseDescriptionFlow = ai.defineFlow(
     outputSchema: GenerateCourseDescriptionOutputSchema,
   },
   async (input: GenerateCourseDescriptionInput) => {
-    // Basic input validation or transformation can happen here if needed
     if (!input.courseType || input.courseType.trim() === '') {
         return { description: "A valuable supplementary course to enhance your skills." };
     }
 
-    const {output} = await prompt(input);
-    
-    if (!output || !output.description) {
-        // Fallback if AI fails to generate a description
-        return { description: `Learn essential skills in ${input.courseType}.` };
+    try {
+      const {output} = await prompt(input);
+      
+      if (!output || !output.description) {
+          console.warn(`AI did not return a description for course type: ${input.courseType}. Output:`, output);
+          // Fallback if AI fails to generate a valid description structure
+          return { description: `Learn essential skills in ${input.courseType}. This course covers key topics relevant to ${input.courseType}.` };
+      }
+      return output;
+    } catch (error) {
+      console.error(`Error in generateCourseDescriptionFlow for type '${input.courseType}':`, error);
+      // Return a generic fallback description in case of any exception during the AI call
+      return { description: `An introductory course on ${input.courseType}. Explore the fundamentals and key concepts.` };
     }
-    return output;
   }
 );

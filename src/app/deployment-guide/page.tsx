@@ -23,7 +23,7 @@ export default function DeploymentGuidePage(): JSX.Element {
     <div>
       <PageHeader
         title="Deployment Guide Wizard"
-        description="Follow these detailed steps to deploy your InstructorHub application using Firebase App Hosting."
+        description="Follow these detailed steps to deploy your InstructPoint application using Firebase App Hosting."
       />
 
       <div className="space-y-8">
@@ -116,13 +116,17 @@ export default function DeploymentGuidePage(): JSX.Element {
             <div>
               <h4 className="font-semibold">2. Find the App Hosting Service Account</h4>
               <p className="text-sm text-muted-foreground">
-                In the IAM members list, find the service account used by Firebase App Hosting. It usually has a name like:
+                In the IAM members list, find the service account used by Firebase App Hosting for your project. Its email address will typically include your project ID and a reference to "apphosting" or "gcp-sa-apphosting".
                 <br />
-                <code className="bg-muted px-1 py-0.5 rounded text-xs">service-PROJECT_NUMBER@gcp-sa-apphosting.iam.gserviceaccount.com</code>
-                <br />
-                Replace <code className="bg-muted px-1 py-0.5 rounded text-xs">PROJECT_NUMBER</code> with your Google Cloud Project Number (you can find this in Project Settings in Firebase or Cloud Console).
+                Example patterns:
+                <ul className="list-disc pl-5 mt-1 space-y-1 text-xs">
+                  <li><code className="bg-muted px-1 py-0.5 rounded">service-PROJECT_NUMBER@gcp-sa-apphosting.iam.gserviceaccount.com</code></li>
+                  <li><code className="bg-muted px-1 py-0.5 rounded">firebase-app-hosting-compute@YOUR_PROJECT_ID.iam.gserviceaccount.com</code></li>
+                  <li>Or similar variations. Look for the one related to "App Hosting".</li>
+                </ul>
+                Replace <code className="bg-muted px-1 py-0.5 rounded text-xs">PROJECT_NUMBER</code> with your Google Cloud Project Number or <code className="bg-muted px-1 py-0.5 rounded text-xs">YOUR_PROJECT_ID</code> with your Firebase Project ID.
               </p>
-              <ImagePlaceholder title="IAM Page in Google Cloud Console" description="Look for the service account with 'gcp-sa-apphosting' in its email." />
+              <ImagePlaceholder title="IAM Page in Google Cloud Console" description="Look for the service account that contains 'apphosting' or 'gcp-sa-apphosting' and your project ID in its email." />
             </div>
             <div>
               <h4 className="font-semibold">3. Grant "Vertex AI User" Role</h4>
@@ -228,7 +232,7 @@ export default function DeploymentGuidePage(): JSX.Element {
               <p className="text-sm text-muted-foreground">
                 If you encounter issues:
                 <ul className="list-disc pl-5 mt-1 space-y-1">
-                  <li><strong>Build Logs:</strong> The Firebase CLI provides build logs during deployment.</li>
+                  <li><strong>Build Logs:</strong> The Firebase CLI provides build logs during deployment. If deploying from Git, check build logs in the Google Cloud Console under Cloud Build.</li>
                   <li><strong>Runtime Logs:</strong> In the Firebase Console, navigate to App Hosting &gt; Your Backend &gt; "Logs" tab to view runtime logs from your deployed application. These are crucial for diagnosing issues with server-side code or AI calls.</li>
                 </ul>
               </p>
