@@ -1,5 +1,6 @@
+# Studio
 
-# InstructPoint
+The source code for this project is now hosted at `https://github.com/Adamv33/studio.git`.
 
 This is a NextJS starter in Firebase Studio.
 
@@ -20,7 +21,7 @@ Currently, this application uses **mock data** (found in `src/data/mockData.ts`)
     *   Select your project (e.g., `instructorhub-nkxkd`).
     *   Click the **gear icon (⚙️)** next to "Project Overview" to go to **Project settings**.
     *   Under the **General** tab, scroll down to **Your apps**.
-    *   Click on your **Web app** (it will have a `</>` icon). If you don't have one, click "Add app" and choose Web. Give it a nickname like "InstructPoint Web App".
+    *   Click on your **Web app** (it will have a `</>` icon). If you don't have one, click "Add app" and choose Web. Give it a nickname like "Studio Web App".
     *   Find the **SDK setup and configuration** section and select the **Config** option.
 *   You will see a `firebaseConfig` object. Copy these values into your `.env.local` file, prefixing each key with `NEXT_PUBLIC_`. **The file should contain plain text key-value pairs, NOT a JSON object.**
 
@@ -36,12 +37,14 @@ Currently, this application uses **mock data** (found in `src/data/mockData.ts`)
     ```
     *Replace "YOUR_..._FROM_FIREBASE_CONSOLE" with the actual values from your Firebase project.*
 *   **VERY IMPORTANT:** After creating or modifying `.env.local`, you **MUST restart your Next.js development server** (e.g., stop `npm run dev` with Ctrl+C, then re-run `npm run dev`). Next.js only loads these variables on startup.
+*   The console logs in `src/lib/firebase/config.ts` will help you verify if these values are being loaded correctly by your application. Check your browser's developer console for messages starting with "Firebase Config Loaded by App:".
 
 ### 2. Enable Firebase Authentication
 
 *   In the Firebase Console, go to "Build" > "Authentication".
 *   Click "Get started".
 *   Under the "Sign-in method" tab, enable the "Email/Password" provider (and any others you plan to use).
+*   You will need to manually add users here for them to be able to log in.
 
 ### 3. Enable and Configure Cloud Firestore (CRITICAL for "Client is Offline" / 400 Errors)
 
@@ -67,11 +70,14 @@ This is the **most common cause** of "client is offline" or 400 errors on Firest
           match /databases/{database}/documents {
             // Allows all authenticated users to read and write all documents
             // THIS IS INSECURE FOR PRODUCTION, USE FOR TESTING ONLY
+            // For even more open testing (e.g. if auth isn't set up yet, or to bypass auth checks temporarily):
             match /{document=**} {
-              allow read, write: if request.auth != null;
-              // For even more open testing (e.g. if auth isn't set up yet, or to bypass auth checks temporarily):
-              // allow read, write: if true;
+              allow read, write: if true;
             }
+            // If you want to restrict to authenticated users for a start:
+            // match /{document=**} {
+            //   allow read, write: if request.auth != null;
+            // }
           }
         }
         ```
@@ -95,6 +101,7 @@ This is the **most common cause** of "client is offline" or 400 errors on Firest
 
 *   Your application needs to be successfully deployed to Firebase App Hosting for production use.
 *   Deploy your application using the Firebase CLI: `firebase apphosting:backends:deploy` from your project root.
+*   **Important for Builds:** Ensure your App Hosting backend is linked to the correct GitHub repository (e.g., `https://github.com/Adamv33/studio.git`) and branch (`main` or `master`) that contains **all** your project files, including `package.json` at the root. If `package.json` is missing from the commit being built, the build will fail.
 
 ### 6. Configure AI Service Permissions (for Genkit features)
 
@@ -116,25 +123,25 @@ This is the most common error if Firestore is not set up correctly. Carefully re
 
 2.  **Firestore Database Created (Step 3a - CRITICAL):**
     *   Did you go to Firebase Console > Firestore Database and **explicitly click "Create database"** if it was not already created?
-    *   Was a **region selected** and the database enabled? If this step was missed, the client SDK has no database instance to connect to.
+    *   Was a **region selected** and the database enabled? If this step was missed, the client SDK has no database instance to connect to. The error `POST https://firestore.clients6.google.com/$rpc/google.firestore.admin.v1.FirestoreAdmin/GetDatabase 404 (Not Found)` seen in the Firebase Console's own network requests strongly indicates this step might be missing.
 
 3.  **Cloud Firestore API Enabled (Step 4):**
     *   In Google Cloud Console, is the **"Cloud Firestore API"** listed under "Enabled APIs & services" for your project? If not, enable it and wait a few minutes.
 
 4.  **Firestore Security Rules (Step 3b):**
-    *   Are your rules permissive enough for testing (e.g., `allow read, write: if request.auth != null;` or `allow read, write: if true;`)?
+    *   Are your rules permissive enough for testing (e.g., `allow read, write: if true;`)?
     *   Did you **Publish** the rules?
 
 5.  **Browser Issues:**
     *   Try an incognito/private window or a different browser to rule out extension interference.
-    *   Clear your browser's cache and site data for your development domain (e.g., `localhost:9002`).
+    *   Clear your browser's cache and site data for your development domain (e.g., `localhost:9002` or your `cloudworkstations.dev` URL).
 
 6.  **Network:**
     *   Ensure no firewalls, proxies, or VPNs are blocking `firestore.googleapis.com` or other Google Cloud Platform domains.
+    *   Persistent `net::ERR_INTERNET_DISCONNECTED` errors for your application's own resources indicate a broader network issue between your browser and the server hosting your app, which will also prevent Firestore from connecting.
 
 7.  **Billing Account:** (Less common for initial setup within free tiers)
     *   Ensure your Google Cloud project is linked to an active and healthy billing account. Sometimes, if a project's billing status is problematic, services can be restricted.
 
 If you've meticulously gone through all these steps and are still facing issues, please provide details of where you're stuck and any error messages from your browser console or server logs.
     
-```
