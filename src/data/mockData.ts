@@ -102,7 +102,7 @@ export const mockCourses: Course[] = [
     instructorId: 'instr_002', // Johnathan Lee (Instructor)
     instructorName: 'Johnathan Lee',
     trainingLocationAddress: '10 Life Saving Dr, Wellness City, TX',
-    courseType: 'BLS',
+    courseType: 'BLS Provider',
     description: 'Basic Life Support (BLS) training for healthcare professionals and first responders.',
   },
   {
@@ -116,7 +116,7 @@ export const mockCourses: Course[] = [
     instructorId: 'instr_002', // Johnathan Lee (Instructor)
     instructorName: 'Johnathan Lee',
     trainingLocationAddress: '20 Health First Rd, Medville, CA',
-    courseType: 'Heartsaver',
+    courseType: 'Heartsaver First Aid CPR AED',
     description: 'Heartsaver courses provide essential CPR, AED, and First Aid skills to anyone.',
   },
   {
@@ -130,7 +130,7 @@ export const mockCourses: Course[] = [
     instructorId: 'instr_001', // Dr. Emily Carter (TSC)
     instructorName: 'Dr. Emily Carter (TSC)',
     trainingLocationAddress: '10 Life Saving Dr, Wellness City, TX',
-    courseType: 'ACLS',
+    courseType: 'ACLS Provider',
     description: 'Advanced Cardiovascular Life Support (ACLS) for managing complex cardiac emergencies.',
   },
    {
@@ -144,7 +144,7 @@ export const mockCourses: Course[] = [
     instructorId: 'instr_001', // Dr. Emily Carter (TSC)
     instructorName: 'Dr. Emily Carter (TSC)',
     trainingLocationAddress: 'Community Center, Wellness City, TX',
-    courseType: 'BLS',
+    courseType: 'BLS Provider',
     description: 'Comprehensive Basic Life Support (BLS) certification course.',
   },
 ];
