@@ -76,7 +76,7 @@ export const InstructorCard = memo(function InstructorCard({ instructor, onDelet
   // In a real app, `currentUserProfile.uid` would be used.
   const isSelf = currentUserProfile?.uid === instructor.id;
   // A simplified mock "current user" for chat button disabling logic if needed, or rely on currentUserProfile
-  const disableChatWithSelf = isSelf || (mockInstructors.length > 0 && instructor.id === mockInstructors[0]?.id && currentUserProfile?.id === mockInstructors[0]?.id);
+  const disableChatWithSelf = isSelf || (mockInstructors.length > 0 && instructor.id === mockInstructors[0]?.id && currentUserProfile?.uid === mockInstructors[0]?.id);
 
 
   return (
