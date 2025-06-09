@@ -50,7 +50,7 @@ export default function NewInstructorPage() {
         }
         if (userProfile.role === 'TrainingCenterCoordinator') {
           // A TCC can assign a TSC they manage as a supervisor for a new instructor
-          return instr.role === 'TrainingSiteCoordinator' && instr.managedByInstructorId === userProfile.id;
+          return instr.role === 'TrainingSiteCoordinator' && instr.managedByInstructorId === userProfile.uid;
         }
         // TSCs will implicitly be the supervisor (managedByInstructorId) for instructors they create.
         return false; 
@@ -69,7 +69,7 @@ export default function NewInstructorPage() {
       // If data.supervisor is selected from the list (for TCC creating instructor under a TSC), use that.
       // Otherwise, the creator is the manager.
       if(!potentialSupervisors.find(s => s.name === data.supervisor)) {
-        managedBy = userProfile.id; // The creator is the direct manager
+        managedBy = userProfile.uid; // The creator is the direct manager
       }
     }
 
@@ -115,3 +115,4 @@ export default function NewInstructorPage() {
     </div>
   );
 }
+
