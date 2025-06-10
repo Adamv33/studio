@@ -189,9 +189,6 @@ export default function CoursesPage() {
     for (const courseData of parsedCoursesData) {
       try {
         const { description } = await generateCourseDescription({ courseType: courseData.courseType || 'Other' });
-        // Ensure Firestore compatible data: convert dates to Timestamp if needed, though string YYYY-MM-DD is often fine for sorting.
-        // For simplicity, we're keeping courseDate as a string. Firestore can store it as a string.
-        // If native Date objects or Timestamps are preferred, convert `courseData.courseDate` before saving.
         const courseToSave: Omit<Course, 'id'> = { ...courseData, description };
         
         await addDoc(coursesCollectionRef, courseToSave);
@@ -240,8 +237,9 @@ export default function CoursesPage() {
             <Dialog open={isAddCourseDialogOpen} onOpenChange={(isOpen) => {
                 setIsAddCourseDialogOpen(isOpen);
                 if (!isOpen) { 
-                    setPastedData('');
+                    setPastedData(''); // Clear pasted data when dialog is closed
                 } else {
+                    // Pre-fill if dialog is opening and values are not set
                     if (instructors.length > 0 && !batchInstructorId) {
                         setBatchInstructorId(instructors[0].id);
                     }
@@ -341,5 +339,4 @@ export default function CoursesPage() {
     </div>
   );
 }
-
     
