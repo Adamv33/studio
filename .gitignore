@@ -1,10 +1,10 @@
-
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # Dependencies
 /node_modules
 /.pnp
 .pnp.js
+.yarn/install-state.gz
 
 # Testing
 /coverage
@@ -21,17 +21,60 @@
 *.pem
 
 # Local Environment Variables
-# Exclude all .env files by default, except for templates if you have them
+# Ensures that .env.local, .env.development.local, etc., are not committed.
+# These files often contain sensitive API keys or local-specific settings.
 .env
 .env*.local
-*.env.local
-.env.development.local
-.env.test.local
-.env.production.local
 !.env.example
-!.env.template
+!.env.ci
+# If you have other .env files like .env.development, .env.production
+# (without .local), and they should NOT be committed, add them here:
+# .env.development
+# .env.production
 
-# Log files
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+pids
+*.pid
+*.seed
+*.log
+*.csv
+*.dat
+*.out
+*.tmp
+*.swp
+
+# macOS
+.AppleDouble
+.LSOverride
+
+# Editor directories and files
+.idea
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.sublime-workspace
+
+# Optional
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-project
+
+# Cache
+.cache
+.npm
+.eslintcache
+.stylelintcache
+.prettiercache
+.parcel-cache
+
+# Typescript
+*.tsbuildinfo
