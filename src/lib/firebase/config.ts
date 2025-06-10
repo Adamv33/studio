@@ -59,6 +59,20 @@
 //
 // ========================================================================
 
+// Log process.env to see what's available during build/runtime
+// Check if running in a server-side context (like Next.js build or server components)
+const isServer = typeof window === 'undefined';
+if (isServer) {
+  console.log("[BUILD_TIME_ENV_LOG] Logging all process.env keys available to firebase/config.ts:");
+  Object.keys(process.env).forEach(key => {
+    if (key.startsWith('NEXT_PUBLIC_') || key.startsWith('FIREBASE_') || key.includes('VERCEL') || key.includes('NODE_ENV')) {
+      console.log(`[BUILD_TIME_ENV_LOG] ${key}=${process.env[key]}`);
+    }
+  });
+  console.log("[BUILD_TIME_ENV_LOG] --- End of relevant process.env keys ---");
+}
+
+
 export const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -69,53 +83,51 @@ export const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID // Optional
 };
 
-// Log the config for debugging purposes ONLY ON CLIENT-SIDE and IN DEV
+// Enhanced logging logic
+const logContext = isServer ? "[BUILD_TIME_CONFIG_LOG]" : "[CLIENT_SIDE_CONFIG_LOG]";
+
+console.log(`${logContext} Attempting to read Firebase config values from process.env:`);
+console.log(`${logContext} NEXT_PUBLIC_FIREBASE_API_KEY: ${process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? `'${process.env.NEXT_PUBLIC_FIREBASE_API_KEY}' (length: ${process.env.NEXT_PUBLIC_FIREBASE_API_KEY.length})` : 'MISSING or empty'}`);
+console.log(`${logContext} NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'MISSING or empty'}`);
+console.log(`${logContext} NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'MISSING or empty'}`);
+console.log(`${logContext} NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'MISSING or empty (Optional if not using Storage)'}`);
+console.log(`${logContext} NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || 'MISSING or empty (Optional)'}`);
+console.log(`${logContext} NEXT_PUBLIC_FIREBASE_APP_ID: ${process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'MISSING or empty'}`);
+console.log(`${logContext} NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: ${process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || 'MISSING or empty (Optional)'}`);
+
+console.log(`${logContext} Final firebaseConfig object constructed:`, firebaseConfig);
+
+
+// Original console logs for client-side debugging in development
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  console.log("%cFirebase Config Loaded by App:", "color: blue; font-weight: bold;", firebaseConfig);
+  console.log("%cFirebase Config Loaded by App (from original log block):", "color: blue; font-weight: bold;", firebaseConfig);
 
-  const expectedKeys = [
-    'NEXT_PUBLIC_FIREBASE_API_KEY',
-    'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
-    'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
-    'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
-    'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
-    'NEXT_PUBLIC_FIREBASE_APP_ID',
-  ];
   const placeholderValues = ["YOUR_API_KEY", "YOUR_AUTH_DOMAIN", "YOUR_PROJECT_ID", "YOUR_STORAGE_BUCKET", "YOUR_MESSAGING_SENDER_ID", "YOUR_APP_ID", "AIzaSy..................."];
-
   let criticalErrorFound = false;
+
   if (!firebaseConfig.apiKey || placeholderValues.some(p => firebaseConfig.apiKey?.includes(p))) {
     console.error(
-      "CRITICAL: Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is missing, using a placeholder, or seems incomplete in .env.local. " +
+      "CRITICAL (from original log block): Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is missing, using a placeholder, or seems incomplete in .env.local. " +
       "Please verify .env.local and RESTART your dev server."
     );
     criticalErrorFound = true;
   }
   if (!firebaseConfig.projectId || placeholderValues.some(p => firebaseConfig.projectId?.includes(p))) {
     console.error(
-      "CRITICAL: Firebase Project ID (NEXT_PUBLIC_FIREBASE_PROJECT_ID) is missing or using a placeholder in .env.local. " +
+      "CRITICAL (from original log block): Firebase Project ID (NEXT_PUBLIC_FIREBASE_PROJECT_ID) is missing or using a placeholder in .env.local. " +
       "Please verify .env.local and RESTART your dev server."
     );
     criticalErrorFound = true;
   }
    if (!firebaseConfig.authDomain) {
-    console.warn("Firebase Auth Domain (NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) is missing or empty in .env.local. This is usually required.");
-     criticalErrorFound = true;
+    console.warn("(from original log block) Firebase Auth Domain (NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) is missing or empty in .env.local. This is usually required.");
+     criticalErrorFound = true; // Assuming this is critical if missing
   }
-   if (!firebaseConfig.storageBucket) {
-    console.warn("Firebase Storage Bucket (NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET) is missing or empty in .env.local. Required if using Firebase Storage.");
-  }
-   if (!firebaseConfig.messagingSenderId) {
-    console.warn("Firebase Messaging Sender ID (NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID) is missing or empty in .env.local.");
-  }
-   if (!firebaseConfig.appId) {
-    console.warn("Firebase App ID (NEXT_PUBLIC_FIREBASE_APP_ID) is missing or empty in .env.local.");
-     criticalErrorFound = true;
-  }
+   // Other optional checks from original log block...
 
   if (criticalErrorFound) {
-     console.error("%cOne or more critical Firebase config values are missing or incorrect. The application will likely not connect to Firebase services correctly. Please check the .env.local file in the ROOT of your project and ensure you have RESTARTED your development server after changes.", "color: red; font-weight: bold; font-size: 1.1em;");
+     console.error("%c(from original log block) One or more critical Firebase config values are missing or incorrect. Please check .env.local and RESTART your dev server.", "color: red; font-weight: bold; font-size: 1.1em;");
   } else {
-     console.log("%cBasic Firebase config keys seem to be present. If connection issues persist, double-check Firestore database creation, region, security rules, and enabled Cloud APIs in your Firebase/GCP project.", "color: green;");
+     console.log("%c(from original log block) Basic Firebase config keys seem to be present in .env.local for client-side dev.", "color: green;");
   }
 }
