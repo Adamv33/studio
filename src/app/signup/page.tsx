@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { PageHeader } from '@/components/shared/PageHeader'; // Re-added for consistency, can be removed if a true dialog look is preferred
+import { PageHeader } from '@/components/shared/PageHeader';
 import { UserPlus, Send } from 'lucide-react';
 
 const accountRequestSchema = z.object({
@@ -72,25 +72,24 @@ ${data.firstName} ${data.lastName}
     }
 
     toast({
-      title: 'Email Prepared',
-      description: 'Your account request email has been prepared. Please send it using your email client. You will be notified once your account is approved and created.',
+      title: 'Email Client Opened',
+      description: 'Please review and send the prepared email in your mail application.',
       duration: 7000, 
     });
     
-    // Optional: Redirect after a short delay or keep user on page
-    // setTimeout(() => router.push('/login'), 3000); 
+    // Redirect to the submission confirmation page
+    router.push('/signup/request-submitted'); 
 
-    setIsSubmitting(false);
+    // setIsSubmitting(false); // No longer needed here as we redirect
   };
 
   return (
     <div className="container mx-auto flex min-h-screen flex-col items-center justify-center py-12 px-4">
-      {/* The PageHeader can be removed if a more "pop-up" dialog feel is desired without the standard page title */}
       <PageHeader
         title="Request InstructPoint Account"
         description="Complete the form below. Your details will be used to generate an email to the administrator for account creation and approval."
       />
-      <Card className="w-full max-w-lg shadow-xl"> {/* max-w-lg for a dialog-like feel */}
+      <Card className="w-full max-w-lg shadow-xl">
         <CardHeader>
           <CardTitle className="text-2xl font-headline flex items-center">
             <UserPlus className="mr-2 h-6 w-6 text-primary" /> Account Request Form
@@ -225,4 +224,3 @@ ${data.firstName} ${data.lastName}
     </div>
   );
 }
-
