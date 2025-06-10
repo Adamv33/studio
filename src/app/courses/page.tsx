@@ -1,4 +1,3 @@
-
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -339,5 +338,3 @@ export default function CoursesPage() {
     </div>
   );
 }
-
-    
