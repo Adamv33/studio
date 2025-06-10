@@ -339,3 +339,5 @@ export default function CoursesPage() {
     </div>
   );
 }
+
+    
