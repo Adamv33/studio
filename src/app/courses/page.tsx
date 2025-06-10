@@ -95,7 +95,7 @@ export default function CoursesPage() {
     if (mockInstructors.length > 0 && !batchInstructorId) {
         setBatchInstructorId(mockInstructors[0].id);
     }
-  }, [fetchCourses, batchInstructorId]); // Added fetchCourses to dependency array
+  }, [fetchCourses, batchInstructorId]);
 
   const handleDeleteCourse = useCallback(async (id: string) => {
     try {
@@ -103,14 +103,14 @@ export default function CoursesPage() {
       setCourses(prev => prev.filter(course => course.id !== id));
       toast({
           title: "Course Deleted",
-          description: `Course has been removed.`,
+          description: `Course record has been removed from Firestore.`,
           variant: "destructive"
       });
     } catch (error) {
       console.error("Error deleting course from Firestore:", error);
       toast({
         title: "Error Deleting Course",
-        description: "Could not remove the course. Please try again.",
+        description: "Could not remove the course from Firestore. Please try again.",
         variant: "destructive",
       });
     }
@@ -153,21 +153,21 @@ export default function CoursesPage() {
 
       const selectedInstructor = instructors.find(i => i.id === batchInstructorId);
       if (!selectedInstructor) {
-        console.error(`Selected instructor with ID ${batchInstructorId} not found.`);
-        // This case should ideally not happen if batchInstructorId is from the instructors list
+        console.error(`Selected instructor with ID ${batchInstructorId} not found in mock list.`);
+        toast({ title: "Instructor Not Found", description: `Could not find details for selected instructor.`, variant: "destructive" });
         return null;
       }
 
       coursesSuccessfullyParsed++;
       return {
         eCardCode: eCardCode || `PENDING_ECARD_${index}`,
-        courseDate: courseDate, // Use validated or default date string
+        courseDate: courseDate, 
         studentFirstName: studentFirstName || 'N/A',
         studentLastName: studentLastName || 'N/A',
         studentEmail: studentEmail || 'N/A',
         studentPhone: studentPhone || 'N/A',
         instructorId: batchInstructorId,
-        instructorName: selectedInstructor.name, // Denormalizing instructor name
+        instructorName: selectedInstructor.name, 
         trainingLocationAddress: batchTrainingAddress,
         courseType: batchCourseType, 
       };
@@ -181,7 +181,7 @@ export default function CoursesPage() {
     }
 
     setIsGeneratingDescriptions(true);
-    toast({ title: "Processing Courses", description: `Parsed ${parsedCoursesData.length} courses. Generating descriptions...` });
+    toast({ title: "Processing Courses", description: `Parsed ${parsedCoursesData.length} courses. Generating descriptions and saving to Firestore...` });
 
     let coursesAddedToFirestore = 0;
     const coursesCollectionRef = collection(firestore, 'courses');
@@ -189,29 +189,31 @@ export default function CoursesPage() {
     for (const courseData of parsedCoursesData) {
       try {
         const { description } = await generateCourseDescription({ courseType: courseData.courseType || 'Other' });
+        // Ensure Firestore compatible data: convert dates to Timestamp if needed, though string YYYY-MM-DD is often fine for sorting.
+        // For simplicity, we're keeping courseDate as a string. Firestore can store it as a string.
+        // If native Date objects or Timestamps are preferred, convert `courseData.courseDate` before saving.
         const courseToSave: Omit<Course, 'id'> = { ...courseData, description };
         
-        // Add to Firestore
         await addDoc(coursesCollectionRef, courseToSave);
         coursesAddedToFirestore++;
 
       } catch (error) {
         console.error(`Failed to generate description or save course for ${courseData.studentFirstName} ${courseData.studentLastName}:`, error);
-        toast({ title: "AI/Save Error", description: `Could not process course for ${courseData.studentFirstName} ${courseData.studentLastName}.`, variant: "destructive" });
+        toast({ title: "AI/Save Error", description: `Could not process/save course for ${courseData.studentFirstName} ${courseData.studentLastName}.`, variant: "destructive" });
       }
     }
     setIsGeneratingDescriptions(false);
     
     if (coursesAddedToFirestore > 0) {
       toast({ title: "Courses Added", description: `${coursesAddedToFirestore} courses added to Firestore with AI-generated descriptions.` });
-      await fetchCourses(); // Refresh the list from Firestore
+      await fetchCourses(); 
       setPastedData('');
       setIsAddCourseDialogOpen(false);
     } else if (lines.length > 0 && coursesSuccessfullyParsed === 0) {
         toast({ title: "Parsing Failed", description: "No courses were added. Ensure data is tab-separated and valid.", variant: "destructive" });
     } else if (lines.length > 0 && coursesAddedToFirestore < coursesSuccessfullyParsed) {
-        toast({ title: "Partial Success", description: `${coursesAddedToFirestore} courses added. Some may have failed during AI processing or saving.`, variant: "default" });
-        await fetchCourses(); // Refresh list
+        toast({ title: "Partial Success", description: `${coursesAddedToFirestore} courses added to Firestore. Some may have failed.`, variant: "default" });
+        await fetchCourses(); 
         setPastedData('');
         setIsAddCourseDialogOpen(false);
     }
@@ -233,7 +235,7 @@ export default function CoursesPage() {
     <div>
       <PageHeader
         title="Courses"
-        description="Manage instructor-led course data. AI can help generate descriptions."
+        description="Manage instructor-led course data. AI can help generate descriptions. Data is stored in Firestore."
         actions={
             <Dialog open={isAddCourseDialogOpen} onOpenChange={(isOpen) => {
                 setIsAddCourseDialogOpen(isOpen);
@@ -314,7 +316,7 @@ export default function CoursesPage() {
                             <Button type="button" variant="outline" disabled={isGeneratingDescriptions}>Cancel</Button>
                         </DialogClose>
                         <Button onClick={handleBulkAddCourses} disabled={isGeneratingDescriptions || !pastedData.trim() || !batchInstructorId || !batchTrainingAddress || !batchCourseType}>
-                          {isGeneratingDescriptions ? "Processing..." : "Parse and Add Courses"}
+                          {isGeneratingDescriptions ? "Processing..." : "Parse and Add Courses to Firestore"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -323,22 +325,21 @@ export default function CoursesPage() {
       />
       <Card>
         <CardHeader>
-            <CardTitle>Course List</CardTitle>
+            <CardTitle>Course List (from Firestore)</CardTitle>
         </CardHeader>
         <CardContent>
             {isLoadingCourses ? (
-              <p className="text-center text-muted-foreground py-8">Loading courses...</p>
+              <p className="text-center text-muted-foreground py-8">Loading courses from Firestore...</p>
             ) : (
               <CourseTable courses={courses} onDeleteCourse={handleDeleteCourse} />
             )}
         </CardContent>
       </Card>
       <p className="text-xs text-muted-foreground mt-2">
-        Note: Ensure Firestore is set up and security rules for the 'courses' collection allow read/write access.
+        Note: Course data is now managed in Firestore. Ensure security rules for the 'courses' collection allow read/write access as needed. For example, to allow any authenticated user: `match /courses/{document=**} { allow read, write: if request.auth != null; }`
       </p>
     </div>
   );
 }
-    
 
     

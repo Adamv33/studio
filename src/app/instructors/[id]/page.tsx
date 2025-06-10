@@ -77,27 +77,33 @@ const PersonalDocumentsSection: React.FC<{ instructor: Instructor, onDocumentsCh
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // In a real app, you'd upload to Firebase Storage here and get a URL.
+      // For mock, we'll use a blob URL for local preview.
       const newDocument: PersonalDocument = {
         id: `doc_${Date.now()}`,
         name: file.name,
         type: file.name.endsWith('.pdf') ? 'certification_card' : file.name.endsWith('.docx') || file.name.endsWith('.doc') ? 'resume' : file.name.toLowerCase().includes('packet') || file.name.toLowerCase().includes('renewal') ? 'renewal_packet' : 'other',
         uploadDate: new Date().toISOString().split('T')[0],
         instructorId: instructor.id,
-        fileUrl: URL.createObjectURL(file), 
+        fileUrl: URL.createObjectURL(file), // This is a temporary local URL
         size: `${(file.size / 1024).toFixed(1)}KB`
       };
       const updatedDocs = [...documents, newDocument];
       setDocuments(updatedDocs);
-      onDocumentsChange(updatedDocs); 
-      toast({ title: "Document Uploaded", description: `${file.name} uploaded successfully.` });
+      onDocumentsChange(updatedDocs); // This updates the parent state, which should trigger Firestore save if implemented there
+      toast({ title: "Document Uploaded (Locally)", description: `${file.name} previewed. Save profile to persist link if backend supports it.` });
     }
   }, [documents, instructor.id, onDocumentsChange, toast]);
 
   const handleDeleteDocument = useCallback((docId: string) => {
+    const docToDelete = documents.find(doc => doc.id === docId);
+    if (docToDelete?.fileUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(docToDelete.fileUrl); // Clean up local blob URL
+    }
     const updatedDocs = documents.filter(doc => doc.id !== docId);
     setDocuments(updatedDocs);
     onDocumentsChange(updatedDocs);
-    toast({ title: "Document Deleted", description: `Document removed.`, variant: "destructive" });
+    toast({ title: "Document Removed", description: `Document removed locally.`, variant: "destructive" });
   }, [documents, onDocumentsChange, toast]);
 
   const filteredDocuments = useMemo(() => documents.filter(doc =>
@@ -106,6 +112,8 @@ const PersonalDocumentsSection: React.FC<{ instructor: Instructor, onDocumentsCh
   ), [documents, searchTerm]);
 
   useEffect(() => {
+    // When instructor data (potentially from Firestore) changes, update local documents
+    // This is important if parent component re-fetches instructor data
     setDocuments(instructor.uploadedDocuments || []);
   }, [instructor.uploadedDocuments]);
 
@@ -114,7 +122,7 @@ const PersonalDocumentsSection: React.FC<{ instructor: Instructor, onDocumentsCh
     <Card>
       <CardHeader>
         <CardTitle>Personal Documents</CardTitle>
-        <CardDescription>Manage renewal packets, certification cards, and resumes.</CardDescription>
+        <CardDescription>Manage renewal packets, certification cards, and resumes. Uploads are local previews; saving the profile would persist storage links in a real app.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="mb-4 flex flex-col sm:flex-row gap-2">
@@ -191,18 +199,20 @@ export default function InstructorProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [instructorCourses, setInstructorCourses] = useState<Course[]>([]);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [isLoadingCourses, setIsLoadingCourses] = useState(true);
 
   useEffect(() => {
     const fetchInstructorAndCourses = async () => {
-      if (!id || authLoading) return; // Wait for ID and auth to be ready
+      if (!id || authLoading) return; 
       
       setIsLoadingProfile(true);
-      // Fetch instructor details (still from mock data for this example)
-      // In a full Firestore app, instructor details would also come from Firestore.
+      setIsLoadingCourses(true);
+      
       const foundInstructor = allMockInstructors.find(instr => instr.id === id);
       
       if (foundInstructor) {
         setInstructor(foundInstructor);
+        setIsLoadingProfile(false); // Instructor details (mock) loaded
 
         // Fetch courses taught by this instructor from Firestore
         try {
@@ -215,16 +225,19 @@ export default function InstructorProfilePage() {
           } as Course));
           setInstructorCourses(coursesTaught);
         } catch (error) {
-          console.error(`Error fetching courses for instructor ${id}:`, error);
-          toast({ title: "Error", description: "Could not load courses taught by this instructor.", variant: "destructive" });
+          console.error(`Error fetching courses for instructor ${id} from Firestore:`, error);
+          toast({ title: "Error Loading Courses", description: "Could not load courses taught by this instructor from Firestore.", variant: "destructive" });
+        } finally {
+          setIsLoadingCourses(false);
         }
       } else {
-        if (userProfile) { // Only redirect if auth check is done and user exists
+        if (!authLoading && userProfile) { 
             toast({ title: "Not Found", description: "Instructor profile not found.", variant: "destructive" });
             router.push('/instructors');
         }
+        setIsLoadingProfile(false);
+        setIsLoadingCourses(false);
       }
-      setIsLoadingProfile(false);
     };
 
     fetchInstructorAndCourses();
@@ -265,6 +278,7 @@ export default function InstructorProfilePage() {
       return;
     }
 
+    // Clean up old blob URL if a new one is not provided or is different
     if (instructor?.profilePictureUrl && instructor.profilePictureUrl.startsWith('blob:') &&
         (!data.profilePictureUrl || data.profilePictureUrl !== instructor.profilePictureUrl)) {
       URL.revokeObjectURL(instructor.profilePictureUrl);
@@ -274,7 +288,7 @@ export default function InstructorProfilePage() {
       if (!prevInstructor) return null; 
       const updatedInstructor = { ...prevInstructor, ...data }; 
       
-      // Update mock data (in real app, this would be Firestore update for instructor profile)
+      // Update mock data for instructor profile (in real app, this would be Firestore update for 'users' or 'instructors' collection)
       const index = allMockInstructors.findIndex(i => i.id === id);
       if (index !== -1) {
         allMockInstructors[index] = updatedInstructor; 
@@ -283,8 +297,8 @@ export default function InstructorProfilePage() {
     });
     
     toast({
-        title: "Profile Updated",
-        description: `${data.name}'s profile has been successfully updated.`,
+        title: "Profile Updated (Mock)",
+        description: `${data.name}'s profile has been updated in mock data. Firestore integration for profiles is separate.`,
     });
     setIsEditing(false);
   }, [id, toast, instructor?.profilePictureUrl, userCanEditThisProfile]);
@@ -293,7 +307,7 @@ export default function InstructorProfilePage() {
     setInstructor(prevInstructor => {
         if (prevInstructor) {
             const updatedInstructorData = { ...prevInstructor, uploadedDocuments: updatedDocs };
-            // Update mock data (in real app, this would be Firestore update for instructor profile)
+            // Update mock data (in real app, this would update the instructor's document in Firestore)
             const index = allMockInstructors.findIndex(i => i.id === prevInstructor.id);
             if (index !== -1) {
                 allMockInstructors[index] = updatedInstructorData; 
@@ -304,19 +318,33 @@ export default function InstructorProfilePage() {
     });
   }, []);
 
+  // Cleanup blob URLs on unmount
   useEffect(() => {
+    const currentInstructor = instructor; // Capture instructor state at the time of effect setup
     return () => {
-      // Clean up blob URL if component unmounts and it was a preview
-      // This is tricky because handleFormSubmit might also revoke it.
-      // A more robust solution might involve tracking the specific blob URL.
+      currentInstructor?.uploadedDocuments?.forEach(doc => {
+        if (doc.fileUrl?.startsWith('blob:')) {
+          URL.revokeObjectURL(doc.fileUrl);
+        }
+      });
+      if (currentInstructor?.profilePictureUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(currentInstructor.profilePictureUrl);
+      }
     };
-  }, []);
+  }, [instructor]);
 
 
-  if (authLoading || isLoadingProfile || !instructor) {
+  if (authLoading || isLoadingProfile ) {
     return <div className="flex justify-center items-center h-screen"><p>Loading instructor data...</p></div>;
   }
   
+  // Moved this check after initial loading flags resolve
+  if (!instructor) {
+      // If not loading and instructor is still null, it means they weren't found (and redirection should have happened)
+      // Or it's the brief moment before redirection after a failed fetch.
+      return <div className="flex justify-center items-center h-screen"><p>Instructor not found or access denied.</p></div>;
+  }
+
   if (userProfile?.role === 'Instructor' && userProfile.uid !== id) {
      toast({ title: "Access Denied", description: "You can only view your own profile.", variant: "destructive"});
      router.push('/instructors'); 
@@ -432,13 +460,15 @@ export default function InstructorProfilePage() {
                 <CardDescription>List of courses instructed by {instructor.name}. Sourced from Firestore.</CardDescription>
               </CardHeader>
               <CardContent>
-                {instructorCourses.length > 0 ? (
+                {isLoadingCourses ? (
+                    <p className="text-center text-muted-foreground py-8">Loading courses from Firestore...</p>
+                ): instructorCourses.length > 0 ? (
                    <ScrollArea className="h-[300px] pr-3">
                     <ul className="space-y-3">
                       {instructorCourses.map(course => (
                         <li key={course.id} className="p-3 border rounded-md hover:bg-muted/50">
                           <p className="font-medium text-sm">Course: {course.courseType} - eCard: {course.eCardCode}</p>
-                          <p className="text-xs text-muted-foreground">Date: {format(new Date(course.courseDate), "MMM d, yyyy")} | Student: {course.studentFirstName} {course.studentLastName}</p>
+                          <p className="text-xs text-muted-foreground">Date: {course.courseDate ? format(new Date(course.courseDate), "MMM d, yyyy") : "Invalid Date"} | Student: {course.studentFirstName} {course.studentLastName}</p>
                           <p className="text-xs text-muted-foreground">Location: {course.trainingLocationAddress}</p>
                         </li>
                       ))}

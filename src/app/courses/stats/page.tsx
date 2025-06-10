@@ -2,7 +2,7 @@
 'use client';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
-import { mockInstructors } from '@/data/mockData'; // Keep for instructor dropdown
+import { mockInstructors } from '@/data/mockData'; // Keep for instructor dropdown, assuming instructors are not yet in Firestore
 import type { Course, Instructor } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,7 +20,7 @@ interface CourseStats {
 
 export default function CourseStatsPage() {
   const [allCourses, setAllCourses] = useState<Course[]>([]);
-  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [instructors, setInstructors] = useState<Instructor[]>([]); // Still using mock instructors for filtering
   const [selectedInstructorId, setSelectedInstructorId] = useState<string | 'all'>('all');
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
@@ -29,7 +29,7 @@ export default function CourseStatsPage() {
     setIsLoading(true);
     try {
       const coursesCollectionRef = collection(firestore, 'courses');
-      const q = query(coursesCollectionRef, orderBy('courseDate', 'desc'));
+      const q = query(coursesCollectionRef, orderBy('courseDate', 'desc')); // Fetch all courses
       const querySnapshot = await getDocs(q);
       const firestoreCourses = querySnapshot.docs.map(docSnap => ({
         id: docSnap.id,
@@ -37,10 +37,10 @@ export default function CourseStatsPage() {
       } as Course));
       setAllCourses(firestoreCourses);
     } catch (error) {
-      console.error("Error fetching courses from Firestore:", error);
+      console.error("Error fetching courses from Firestore for stats:", error);
       toast({
         title: "Error Loading Course Data",
-        description: "Could not fetch course data for statistics.",
+        description: "Could not fetch course data from Firestore for statistics.",
         variant: "destructive",
       });
     } finally {
@@ -50,7 +50,7 @@ export default function CourseStatsPage() {
 
   useEffect(() => {
     fetchAllCourses();
-    // Instructors list for filter dropdown (still mock for now)
+    // Instructors list for filter dropdown (still mock for now as instructor profiles might not be in Firestore yet)
     setInstructors(mockInstructors);
   }, [fetchAllCourses]);
 
@@ -69,14 +69,21 @@ export default function CourseStatsPage() {
     const typeCounts: Record<string, number> = {};
 
     filteredCourses.forEach(course => {
-      const year = new Date(course.courseDate).getFullYear().toString();
+      // Ensure courseDate is valid before trying to parse
+      const courseDateValid = course.courseDate && !isNaN(new Date(course.courseDate).getFullYear());
+      const year = courseDateValid ? new Date(course.courseDate).getFullYear().toString() : 'Unknown Year';
+      
       yearCounts[year] = (yearCounts[year] || 0) + 1;
       typeCounts[course.courseType] = (typeCounts[course.courseType] || 0) + 1;
     });
 
     stats.coursesByYear = Object.entries(yearCounts)
       .map(([year, count]) => ({ year, count }))
-      .sort((a, b) => parseInt(b.year) - parseInt(a.year)); 
+      .sort((a, b) => {
+        if (a.year === 'Unknown Year') return 1; // Push Unknown Year to the end
+        if (b.year === 'Unknown Year') return -1;
+        return parseInt(b.year) - parseInt(a.year);
+      }); 
       
     stats.coursesByType = Object.entries(typeCounts)
       .map(([type, count]) => ({ type, count }))
@@ -92,9 +99,9 @@ export default function CourseStatsPage() {
   if (isLoading) {
     return (
         <div>
-            <PageHeader title="Course Statistics" description="Loading statistics..." />
+            <PageHeader title="Course Statistics" description="Loading statistics from Firestore..." />
             <div className="text-center py-10">
-                <p className="text-muted-foreground">Loading course data for statistics...</p>
+                <p className="text-muted-foreground">Loading course data for statistics from Firestore...</p>
             </div>
         </div>
     );
@@ -104,7 +111,7 @@ export default function CourseStatsPage() {
     <div>
       <PageHeader
         title="Course Statistics"
-        description={`Showing statistics for ${selectedInstructorName}.`}
+        description={`Showing statistics for ${selectedInstructorName}. Data from Firestore.`}
       />
 
       <div className="mb-6">
@@ -160,7 +167,7 @@ export default function CourseStatsPage() {
                 </TableBody>
               </Table>
             ) : (
-              <p className="text-muted-foreground text-center py-4">No course data for this selection.</p>
+              <p className="text-muted-foreground text-center py-4">No course data for this selection in Firestore.</p>
             )}
           </CardContent>
         </Card>
@@ -189,7 +196,7 @@ export default function CourseStatsPage() {
                 </TableBody>
               </Table>
             ) : (
-               <p className="text-muted-foreground text-center py-4">No course data by type for this selection.</p>
+               <p className="text-muted-foreground text-center py-4">No course data by type for this selection in Firestore.</p>
             )}
           </CardContent>
         </Card>
