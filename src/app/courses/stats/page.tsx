@@ -1,13 +1,16 @@
 
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
-import { mockCourses, mockInstructors } from '@/data/mockData';
+import { mockInstructors } from '@/data/mockData'; // Keep for instructor dropdown
 import type { Course, Instructor } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
+import { firestore } from '@/lib/firebase/clientApp';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { useToast } from "@/hooks/use-toast";
 
 interface CourseStats {
   totalCourses: number;
@@ -16,19 +19,45 @@ interface CourseStats {
 }
 
 export default function CourseStatsPage() {
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [selectedInstructorId, setSelectedInstructorId] = useState<string | 'all'>('all');
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+
+  const fetchAllCourses = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const coursesCollectionRef = collection(firestore, 'courses');
+      const q = query(coursesCollectionRef, orderBy('courseDate', 'desc'));
+      const querySnapshot = await getDocs(q);
+      const firestoreCourses = querySnapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      } as Course));
+      setAllCourses(firestoreCourses);
+    } catch (error) {
+      console.error("Error fetching courses from Firestore:", error);
+      toast({
+        title: "Error Loading Course Data",
+        description: "Could not fetch course data for statistics.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
 
   useEffect(() => {
-    setCourses(mockCourses);
+    fetchAllCourses();
+    // Instructors list for filter dropdown (still mock for now)
     setInstructors(mockInstructors);
-  }, []);
+  }, [fetchAllCourses]);
 
   const instructorStats = useMemo(() => {
     const filteredCourses = selectedInstructorId === 'all'
-      ? courses
-      : courses.filter(course => course.instructorId === selectedInstructorId);
+      ? allCourses
+      : allCourses.filter(course => course.instructorId === selectedInstructorId);
 
     const stats: CourseStats = {
       totalCourses: filteredCourses.length,
@@ -47,18 +76,29 @@ export default function CourseStatsPage() {
 
     stats.coursesByYear = Object.entries(yearCounts)
       .map(([year, count]) => ({ year, count }))
-      .sort((a, b) => parseInt(b.year) - parseInt(a.year)); // Sort by year descending
+      .sort((a, b) => parseInt(b.year) - parseInt(a.year)); 
       
     stats.coursesByType = Object.entries(typeCounts)
       .map(([type, count]) => ({ type, count }))
-      .sort((a,b) => b.count - a.count); // Sort by count descending
+      .sort((a,b) => b.count - a.count);
 
     return stats;
-  }, [courses, selectedInstructorId]);
+  }, [allCourses, selectedInstructorId]);
 
   const selectedInstructorName = selectedInstructorId === 'all' 
     ? 'All Instructors' 
     : instructors.find(i => i.id === selectedInstructorId)?.name || 'Selected Instructor';
+
+  if (isLoading) {
+    return (
+        <div>
+            <PageHeader title="Course Statistics" description="Loading statistics..." />
+            <div className="text-center py-10">
+                <p className="text-muted-foreground">Loading course data for statistics...</p>
+            </div>
+        </div>
+    );
+  }
 
   return (
     <div>
@@ -154,6 +194,11 @@ export default function CourseStatsPage() {
           </CardContent>
         </Card>
       </div>
+       <p className="text-xs text-muted-foreground mt-4">
+        Note: Course data is now sourced from Firestore. Ensure security rules for the 'courses' collection allow read access.
+      </p>
     </div>
   );
 }
+
+    

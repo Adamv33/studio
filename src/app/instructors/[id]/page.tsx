@@ -2,7 +2,7 @@
 'use client';
 import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { mockInstructors, mockCourses, mockInstructors as allMockInstructors } from '@/data/mockData';
+import { mockInstructors as allMockInstructors } from '@/data/mockData'; // Keep for base instructor data
 import type { Instructor, Course, PersonalDocument, UserProfile } from '@/types';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
-import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
+import { useAuth } from '@/contexts/AuthContext';
+import { firestore } from '@/lib/firebase/clientApp';
+import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+
 
 const CertificationDisplay: React.FC<{ cert?: { name: string; issuedDate?: string; expiryDate?: string } }> = memo(({ cert }) => {
   if (!cert || (!cert.issuedDate && !cert.expiryDate)) return <span className="text-muted-foreground">Not specified</span>;
@@ -41,20 +44,16 @@ const CertificationDisplay: React.FC<{ cert?: { name: string; issuedDate?: strin
 });
 CertificationDisplay.displayName = 'CertificationDisplay';
 
-// Helper to check if current user can manage/edit the target instructor
 const canEditProfile = (currentUserProfile: UserProfile | null, targetInstructorId: string, targetInstructorManagedById?: string, allInstructorsList?: Instructor[]): boolean => {
   if (!currentUserProfile) return false;
   if (currentUserProfile.role === 'Admin') return true;
-  if (currentUserProfile.uid === targetInstructorId) return true; // Can edit self
+  if (currentUserProfile.uid === targetInstructorId) return true;
 
   if (currentUserProfile.role === 'TrainingCenterCoordinator') {
-    // Check if targetInstructor is in the TCC's hierarchy
     let currentManagedById = targetInstructorManagedById;
     const instructorBeingViewed = allInstructorsList?.find(i => i.id === targetInstructorId);
-    if (!instructorBeingViewed) return false; // Should not happen if data is consistent
-
+    if (!instructorBeingViewed) return false; 
     currentManagedById = instructorBeingViewed.managedByInstructorId;
-
     while (currentManagedById) {
       if (currentManagedById === currentUserProfile.uid) return true;
       const supervisor = allInstructorsList?.find(i => i.id === currentManagedById);
@@ -154,7 +153,7 @@ const PersonalDocumentsSection: React.FC<{ instructor: Instructor, onDocumentsCh
                     </div>
                   </div>
                    <div className="flex items-center gap-1">
-                     {doc.fileUrl && doc.fileUrl.startsWith('blob:') && ( // Only show view for blob URLs (newly uploaded)
+                     {doc.fileUrl && doc.fileUrl.startsWith('blob:') && ( 
                         <Button variant="ghost" size="sm" asChild>
                            <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" download={doc.name}>
                              View
@@ -185,27 +184,51 @@ export default function InstructorProfilePage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
-  const { currentUser, userProfile, loading: authLoading } = useAuth(); // Get current user
-  const id = params.id as string; // ID of the instructor profile being viewed
+  const { userProfile, loading: authLoading } = useAuth();
+  const id = params.id as string;
 
   const [instructor, setInstructor] = useState<Instructor | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [instructorCourses, setInstructorCourses] = useState<Course[]>([]);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
   useEffect(() => {
-    const foundInstructor = allMockInstructors.find(instr => instr.id === id);
-    if (foundInstructor) {
-      setInstructor(foundInstructor); 
-      const coursesTaught = mockCourses.filter(course => course.instructorId === id);
-      setInstructorCourses(coursesTaught);
-    } else {
-      // If instructor not found in mock data, redirect (in real app, this might be a 404)
-      // For now, only redirect if auth is not loading and user has a profile (meaning they are past initial checks)
-      if (!authLoading && userProfile) {
-        router.push('/instructors');
+    const fetchInstructorAndCourses = async () => {
+      if (!id || authLoading) return; // Wait for ID and auth to be ready
+      
+      setIsLoadingProfile(true);
+      // Fetch instructor details (still from mock data for this example)
+      // In a full Firestore app, instructor details would also come from Firestore.
+      const foundInstructor = allMockInstructors.find(instr => instr.id === id);
+      
+      if (foundInstructor) {
+        setInstructor(foundInstructor);
+
+        // Fetch courses taught by this instructor from Firestore
+        try {
+          const coursesCollectionRef = collection(firestore, 'courses');
+          const q = query(coursesCollectionRef, where("instructorId", "==", id), orderBy("courseDate", "desc"));
+          const querySnapshot = await getDocs(q);
+          const coursesTaught = querySnapshot.docs.map(docSnap => ({
+            id: docSnap.id,
+            ...docSnap.data()
+          } as Course));
+          setInstructorCourses(coursesTaught);
+        } catch (error) {
+          console.error(`Error fetching courses for instructor ${id}:`, error);
+          toast({ title: "Error", description: "Could not load courses taught by this instructor.", variant: "destructive" });
+        }
+      } else {
+        if (userProfile) { // Only redirect if auth check is done and user exists
+            toast({ title: "Not Found", description: "Instructor profile not found.", variant: "destructive" });
+            router.push('/instructors');
+        }
       }
-    }
-  }, [id, router, authLoading, userProfile]);
+      setIsLoadingProfile(false);
+    };
+
+    fetchInstructorAndCourses();
+  }, [id, router, toast, authLoading, userProfile]);
 
   const userCanEditThisProfile = useMemo(() => {
     if (!userProfile || !instructor) return false;
@@ -214,21 +237,15 @@ export default function InstructorProfilePage() {
 
   const potentialSupervisors = useMemo(() => {
     if (!userProfile) return [];
-    // Admins can assign any TCC or TSC as supervisor.
-    // TCCs can assign TSCs they manage or themselves (if adding direct instructor).
-    // TSCs can assign themselves.
-    // Filter out the instructor being edited from potential supervisors.
     return allMockInstructors
       .filter(instr => {
-        if (instr.id === id) return false; // Cannot supervise self
+        if (instr.id === id) return false; 
         if (userProfile.role === 'Admin') {
           return ['TrainingCenterCoordinator', 'TrainingSiteCoordinator'].includes(instr.role);
         }
         if (userProfile.role === 'TrainingCenterCoordinator') {
-          // TCC can assign a TSC they manage, or themselves if adding direct instructor
           return instr.role === 'TrainingSiteCoordinator' && instr.managedByInstructorId === userProfile.uid;
         }
-        // TSCs don't typically choose supervisors in this context, it's their own TCC or Admin
         return false; 
       })
       .map(instr => ({ id: instr.id, name: instr.name, role: instr.role as UserProfile['role'] }));
@@ -257,6 +274,7 @@ export default function InstructorProfilePage() {
       if (!prevInstructor) return null; 
       const updatedInstructor = { ...prevInstructor, ...data }; 
       
+      // Update mock data (in real app, this would be Firestore update for instructor profile)
       const index = allMockInstructors.findIndex(i => i.id === id);
       if (index !== -1) {
         allMockInstructors[index] = updatedInstructor; 
@@ -275,6 +293,7 @@ export default function InstructorProfilePage() {
     setInstructor(prevInstructor => {
         if (prevInstructor) {
             const updatedInstructorData = { ...prevInstructor, uploadedDocuments: updatedDocs };
+            // Update mock data (in real app, this would be Firestore update for instructor profile)
             const index = allMockInstructors.findIndex(i => i.id === prevInstructor.id);
             if (index !== -1) {
                 allMockInstructors[index] = updatedInstructorData; 
@@ -287,21 +306,20 @@ export default function InstructorProfilePage() {
 
   useEffect(() => {
     return () => {
-      if (instructor?.profilePictureUrl && instructor.profilePictureUrl.startsWith('blob:')) {
-        // URL.revokeObjectURL(instructor.profilePictureUrl); // Avoid over-aggressive revoke
-      }
+      // Clean up blob URL if component unmounts and it was a preview
+      // This is tricky because handleFormSubmit might also revoke it.
+      // A more robust solution might involve tracking the specific blob URL.
     };
-  }, [instructor?.profilePictureUrl]);
+  }, []);
 
 
-  if (authLoading || !instructor) {
+  if (authLoading || isLoadingProfile || !instructor) {
     return <div className="flex justify-center items-center h-screen"><p>Loading instructor data...</p></div>;
   }
   
-  // Additional check: if user is an instructor and tries to view another instructor's profile
   if (userProfile?.role === 'Instructor' && userProfile.uid !== id) {
      toast({ title: "Access Denied", description: "You can only view your own profile.", variant: "destructive"});
-     router.push('/instructors'); // or router.push(`/instructors/${userProfile.uid}`);
+     router.push('/instructors'); 
      return <div className="flex justify-center items-center h-screen"><p>Redirecting...</p></div>;
   }
 
@@ -378,7 +396,7 @@ export default function InstructorProfilePage() {
                  <div>
                   <h4 className="font-semibold mb-2 text-primary flex items-center"><Briefcase className="mr-2 h-5 w-5"/>Professional Details</h4>
                   <p className="text-sm mb-1">Role: {instructor.role.replace(/([A-Z])/g, ' $1').trim()}</p>
-                  {instructor.supervisor && <p className="text-sm mb-1">Supervisor: {mockInstructors.find(i => i.id === instructor.managedByInstructorId)?.name || instructor.supervisor}</p>}
+                  {instructor.supervisor && <p className="text-sm mb-1">Supervisor: {allMockInstructors.find(i => i.id === instructor.managedByInstructorId)?.name || instructor.supervisor}</p>}
                   <p className="text-sm">Training Faculty: {instructor.isTrainingFaculty ? 'Yes' : 'No'}</p>
                 </div>
                 <div className="md:col-span-2">
@@ -411,7 +429,7 @@ export default function InstructorProfilePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Courses Taught</CardTitle>
-                <CardDescription>List of courses instructed by {instructor.name}.</CardDescription>
+                <CardDescription>List of courses instructed by {instructor.name}. Sourced from Firestore.</CardDescription>
               </CardHeader>
               <CardContent>
                 {instructorCourses.length > 0 ? (
@@ -427,7 +445,7 @@ export default function InstructorProfilePage() {
                     </ul>
                   </ScrollArea>
                 ) : (
-                  <p className="text-sm text-muted-foreground text-center py-4">No courses found for this instructor.</p>
+                  <p className="text-sm text-muted-foreground text-center py-4">No courses found for this instructor in Firestore.</p>
                 )}
               </CardContent>
             </Card>
@@ -437,3 +455,5 @@ export default function InstructorProfilePage() {
     </div>
   );
 }
+
+    

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
-import { mockCourses, mockInstructors } from '@/data/mockData';
+import { mockInstructors } from '@/data/mockData'; // Keep for instructor dropdown
 import type { Course, Instructor } from '@/types';
 import { CourseTable } from '@/components/courses/CourseTable';
 import { Textarea } from '@/components/ui/textarea';
@@ -24,6 +24,9 @@ import {
 } from "@/components/ui/dialog"
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { generateCourseDescription } from '@/ai/flows/generate-course-description-flow';
+import { firestore } from '@/lib/firebase/clientApp';
+import { collection, addDoc, getDocs, deleteDoc, doc, Timestamp, orderBy, query } from 'firebase/firestore';
+import { format } from 'date-fns'; // For date formatting if needed
 
 const availableCourseTypes: Course['courseType'][] = [
   'ACLS EP',
@@ -44,7 +47,7 @@ const availableCourseTypes: Course['courseType'][] = [
   'PALS Plus Provider',
   'PALS Provider',
   'PEARS Provider',
-  'Other' // Keep 'Other' as a fallback
+  'Other'
 ];
 
 
@@ -54,30 +57,63 @@ export default function CoursesPage() {
   const [pastedData, setPastedData] = useState('');
   const [batchInstructorId, setBatchInstructorId] = useState<string>('');
   const [batchTrainingAddress, setBatchTrainingAddress] = useState<string>('');
-  const [batchCourseType, setBatchCourseType] = useState<Course['courseType']>('BLS Provider'); // Default to a common type
+  const [batchCourseType, setBatchCourseType] = useState<Course['courseType']>('BLS Provider');
   const [isAddCourseDialogOpen, setIsAddCourseDialogOpen] = useState(false);
   const [isGeneratingDescriptions, setIsGeneratingDescriptions] = useState(false);
+  const [isLoadingCourses, setIsLoadingCourses] = useState(true);
   const { toast } = useToast();
 
+  const fetchCourses = useCallback(async () => {
+    setIsLoadingCourses(true);
+    try {
+      const coursesCollectionRef = collection(firestore, 'courses');
+      // Order by courseDate descending, so newer courses appear first
+      const q = query(coursesCollectionRef, orderBy('courseDate', 'desc'));
+      const querySnapshot = await getDocs(q);
+      const firestoreCourses = querySnapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      } as Course));
+      setCourses(firestoreCourses);
+    } catch (error) {
+      console.error("Error fetching courses from Firestore:", error);
+      toast({
+        title: "Error Loading Courses",
+        description: "Could not fetch courses from the database. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingCourses(false);
+    }
+  }, [toast]);
+
   useEffect(() => {
-    const loadedCourses = mockCourses.map(course => ({
-        ...course,
-        instructorName: mockInstructors.find(i => i.id === course.instructorId)?.name || 'Unknown Instructor'
-    }));
-    setCourses(loadedCourses);
+    fetchCourses();
+    // Load instructors for the dropdown (still from mockData for now)
+    // In a full Firestore app, instructors would also come from Firestore.
     setInstructors(mockInstructors);
     if (mockInstructors.length > 0 && !batchInstructorId) {
         setBatchInstructorId(mockInstructors[0].id);
     }
-  }, [batchInstructorId]);
+  }, [fetchCourses, batchInstructorId]); // Added fetchCourses to dependency array
 
-  const handleDeleteCourse = useCallback((id: string) => {
-    setCourses(prev => prev.filter(course => course.id !== id));
-     toast({
-        title: "Course Deleted",
-        description: `Course has been removed.`,
-        variant: "destructive"
-    });
+  const handleDeleteCourse = useCallback(async (id: string) => {
+    try {
+      await deleteDoc(doc(firestore, 'courses', id));
+      setCourses(prev => prev.filter(course => course.id !== id));
+      toast({
+          title: "Course Deleted",
+          description: `Course has been removed.`,
+          variant: "destructive"
+      });
+    } catch (error) {
+      console.error("Error deleting course from Firestore:", error);
+      toast({
+        title: "Error Deleting Course",
+        description: "Could not remove the course. Please try again.",
+        variant: "destructive",
+      });
+    }
   }, [toast]);
 
   const handleBulkAddCourses = useCallback(async () => {
@@ -101,73 +137,85 @@ export default function CoursesPage() {
     const lines = pastedData.trim().split('\n');
     let coursesSuccessfullyParsed = 0;
     
-    const parsedCourses: Omit<Course, 'description'>[] = lines.map((line, index) => {
+    const parsedCoursesData: Omit<Course, 'id' | 'description'>[] = lines.map((line, index) => {
       const fields = line.split('\t');
       if (fields.length < 6) {
         console.warn(`Line ${index + 1} has insufficient data. Expected 6 tab-separated fields, got ${fields.length}. Line: "${line}"`);
         return null; 
       }
-      const [eCardCode, courseDate, studentFirstName, studentLastName, studentEmail, studentPhone] = fields;
+      const [eCardCode, courseDateStr, studentFirstName, studentLastName, studentEmail, studentPhone] = fields;
+      
+      // Validate date format (YYYY-MM-DD)
+      const courseDate = courseDateStr && /^\d{4}-\d{2}-\d{2}$/.test(courseDateStr) 
+        ? courseDateStr 
+        : new Date().toISOString().split('T')[0];
+
 
       const selectedInstructor = instructors.find(i => i.id === batchInstructorId);
       if (!selectedInstructor) {
         console.error(`Selected instructor with ID ${batchInstructorId} not found.`);
+        // This case should ideally not happen if batchInstructorId is from the instructors list
         return null;
       }
 
       coursesSuccessfullyParsed++;
       return {
-        id: `pasted_${Date.now()}_${index}`,
         eCardCode: eCardCode || `PENDING_ECARD_${index}`,
-        courseDate: courseDate || new Date().toISOString().split('T')[0],
+        courseDate: courseDate, // Use validated or default date string
         studentFirstName: studentFirstName || 'N/A',
         studentLastName: studentLastName || 'N/A',
         studentEmail: studentEmail || 'N/A',
         studentPhone: studentPhone || 'N/A',
         instructorId: batchInstructorId,
-        instructorName: selectedInstructor.name,
+        instructorName: selectedInstructor.name, // Denormalizing instructor name
         trainingLocationAddress: batchTrainingAddress,
         courseType: batchCourseType, 
       };
-    }).filter(course => course !== null && course.eCardCode) as Omit<Course, 'description'>[];
+    }).filter(course => course !== null && course.eCardCode) as Omit<Course, 'id' | 'description'>[];
 
-    if (parsedCourses.length === 0) {
+    if (parsedCoursesData.length === 0) {
       if (lines.length > 0) {
-         toast({ title: "Parsing Failed", description: "No valid courses found in pasted data. Ensure data is tab-separated with 6 columns.", variant: "destructive" });
+         toast({ title: "Parsing Failed", description: "No valid courses found in pasted data. Ensure data is tab-separated with 6 columns and dates are YYYY-MM-DD.", variant: "destructive" });
       }
       return;
     }
 
     setIsGeneratingDescriptions(true);
-    toast({ title: "Processing Courses", description: `Parsed ${parsedCourses.length} courses. Generating descriptions...` });
+    toast({ title: "Processing Courses", description: `Parsed ${parsedCoursesData.length} courses. Generating descriptions...` });
 
-    const coursesWithDescriptionsPromises = parsedCourses.map(async (course) => {
+    let coursesAddedToFirestore = 0;
+    const coursesCollectionRef = collection(firestore, 'courses');
+
+    for (const courseData of parsedCoursesData) {
       try {
-        const { description } = await generateCourseDescription({ courseType: course.courseType || 'Other' });
-        return { ...course, description };
-      } catch (error) {
-        console.error(`Failed to generate description for course ${course.id}:`, error);
-        toast({ title: "AI Error", description: `Could not generate description for ${course.studentFirstName} ${course.studentLastName}.`, variant: "destructive" });
-        return { ...course, description: `Standard ${course.courseType || 'Other'} course.` }; 
-      }
-    });
+        const { description } = await generateCourseDescription({ courseType: courseData.courseType || 'Other' });
+        const courseToSave: Omit<Course, 'id'> = { ...courseData, description };
+        
+        // Add to Firestore
+        await addDoc(coursesCollectionRef, courseToSave);
+        coursesAddedToFirestore++;
 
-    const newCoursesWithDescriptions = await Promise.all(coursesWithDescriptionsPromises);
+      } catch (error) {
+        console.error(`Failed to generate description or save course for ${courseData.studentFirstName} ${courseData.studentLastName}:`, error);
+        toast({ title: "AI/Save Error", description: `Could not process course for ${courseData.studentFirstName} ${courseData.studentLastName}.`, variant: "destructive" });
+      }
+    }
     setIsGeneratingDescriptions(false);
     
-    if (newCoursesWithDescriptions.length > 0) {
-      setCourses(prev => [...newCoursesWithDescriptions, ...prev]);
-      toast({ title: "Courses Added", description: `${newCoursesWithDescriptions.length} courses added with AI-generated descriptions.` });
+    if (coursesAddedToFirestore > 0) {
+      toast({ title: "Courses Added", description: `${coursesAddedToFirestore} courses added to Firestore with AI-generated descriptions.` });
+      await fetchCourses(); // Refresh the list from Firestore
       setPastedData('');
       setIsAddCourseDialogOpen(false);
     } else if (lines.length > 0 && coursesSuccessfullyParsed === 0) {
-        toast({ title: "Parsing Failed", description: "No courses were added. Ensure data is tab-separated with 6 columns.", variant: "destructive" });
-    } else if (lines.length > 0 && coursesSuccessfullyParsed < lines.length) {
-        toast({ title: "Partial Success", description: `${coursesSuccessfullyParsed} courses added. Some lines may have had formatting issues. Descriptions generated.`, variant: "default" });
+        toast({ title: "Parsing Failed", description: "No courses were added. Ensure data is tab-separated and valid.", variant: "destructive" });
+    } else if (lines.length > 0 && coursesAddedToFirestore < coursesSuccessfullyParsed) {
+        toast({ title: "Partial Success", description: `${coursesAddedToFirestore} courses added. Some may have failed during AI processing or saving.`, variant: "default" });
+        await fetchCourses(); // Refresh list
         setPastedData('');
         setIsAddCourseDialogOpen(false);
     }
-  }, [pastedData, batchInstructorId, batchTrainingAddress, batchCourseType, instructors, toast]);
+  }, [pastedData, batchInstructorId, batchTrainingAddress, batchCourseType, instructors, toast, fetchCourses]);
 
   useEffect(() => {
     if (isAddCourseDialogOpen) {
@@ -175,7 +223,7 @@ export default function CoursesPage() {
         setBatchInstructorId(instructors[0].id);
       }
       if (!batchCourseType && availableCourseTypes.length > 0) {
-        setBatchCourseType(availableCourseTypes[0]); // Default to the first in the new list
+        setBatchCourseType(availableCourseTypes[0]);
       }
     }
   }, [isAddCourseDialogOpen, instructors, batchInstructorId, batchCourseType]);
@@ -209,7 +257,7 @@ export default function CoursesPage() {
                         <DialogDescription>
                             Paste student roster data from your spreadsheet (tab-separated). Each line represents one student.
                             Expected columns: eCard Code, Course Date (YYYY-MM-DD), Student First Name, Student Last Name, Student Email, Student Phone.
-                            Select the course type, instructor, and enter the training address for this entire batch. AI will attempt to generate descriptions.
+                            Select the course type, instructor, and enter the training address for this entire batch. AI will attempt to generate descriptions. Courses will be saved to Firestore.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-2">
@@ -278,11 +326,19 @@ export default function CoursesPage() {
             <CardTitle>Course List</CardTitle>
         </CardHeader>
         <CardContent>
-            <CourseTable courses={courses} onDeleteCourse={handleDeleteCourse} />
+            {isLoadingCourses ? (
+              <p className="text-center text-muted-foreground py-8">Loading courses...</p>
+            ) : (
+              <CourseTable courses={courses} onDeleteCourse={handleDeleteCourse} />
+            )}
         </CardContent>
       </Card>
+      <p className="text-xs text-muted-foreground mt-2">
+        Note: Ensure Firestore is set up and security rules for the 'courses' collection allow read/write access.
+      </p>
     </div>
   );
 }
+    
 
     
