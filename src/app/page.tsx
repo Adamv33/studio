@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/PageHeader';
-import { Users, BookOpen, BarChart3, FolderKanban, ArrowRight, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Users, BookOpen, BarChart3, FolderKanban, ArrowRight, AlertTriangle, CheckCircle2, WifiOff, AlertCircleIcon } from 'lucide-react';
 import Image from 'next/image';
 import { firestore } from '@/lib/firebase/clientApp'; // Import firestore instance
 import { doc, getDoc } from 'firebase/firestore'; // Import firestore functions
@@ -48,59 +48,65 @@ const dashboardItems = [
 export default function DashboardPage() {
   const [firestoreStatus, setFirestoreStatus] = useState<string | null>(null);
   const [statusIsError, setStatusIsError] = useState<boolean>(false);
+  const [detailedErrorHelp, setDetailedErrorHelp] = useState<string | null>(null);
 
   useEffect(() => {
     const checkFirestoreConnectivity = async () => {
       setFirestoreStatus("Attempting to connect to Firestore and perform a test read...");
       setStatusIsError(false);
+      setDetailedErrorHelp(null);
       console.log("[Firestore Test] Initializing test. Firestore object available:", !!firestore);
       if (firestore && firestore.app) {
         console.log("[Firestore Test] Firestore app options:", firestore.app.options);
       } else {
-        console.error("[Firestore Test] Firestore object or firestore.app is not available prior to test doc ref creation.");
+        console.warn("[Firestore Test] Firestore object or firestore.app is not available prior to test doc ref creation.");
       }
-      console.log("[Firestore Test] Firestore instance details (may be verbose):", firestore);
 
       try {
         if (!firestore || !firestore.app || typeof firestore.app.options?.projectId !== 'string') {
-          const errorMessage = "[Firestore Test] CRITICAL: Firestore object is invalid, app is missing, or projectId is missing before creating doc ref. This indicates a problem with Firebase initialization. Check `src/lib/firebase/clientApp.ts` and `config.ts`.";
-          console.error(errorMessage, "Firestore object:", firestore, "App object:", firestore?.app, "App options:", firestore?.app?.options);
-          setFirestoreStatus(`Firestore Initialization FAILED: ${errorMessage}. Ensure Firebase is correctly configured in your .env.local file.`);
+          const errorMessage = "[Firestore Test] CRITICAL: Firestore object is invalid, app is missing, or projectId is missing. This means Firebase failed to initialize correctly. Check `src/lib/firebase/clientApp.ts` and `config.ts` and ensure your `.env.local` file has the correct NEXT_PUBLIC_FIREBASE_ variables from your Firebase project settings.";
+          console.warn(errorMessage, "Firestore object:", firestore, "App object:", firestore?.app, "App options:", firestore?.app?.options);
+          setFirestoreStatus(`Firestore Initialization FAILED: ${errorMessage}`);
+          setDetailedErrorHelp("Ensure Firebase is correctly configured with API keys in your .env.local file, and that `src/lib/firebase/clientApp.ts` correctly initializes Firebase. See README for .env.local setup instructions.");
           setStatusIsError(true);
           return;
         }
         
-        console.log(`[Firestore Test] Firestore seems initialized. Project ID: ${firestore.app.options.projectId}. Attempting to create doc ref for _internal_test_collection_/_connectivity_check_doc_`);
         const testDocRef = doc(firestore, '_internal_test_collection_', '_connectivity_check_doc_');
-        console.log("[Firestore Test] Test document reference created successfully:", testDocRef.path);
-        
-        console.log("[Firestore Test] About to call getDoc(testDocRef).");
+        console.log("[Firestore Test] About to call getDoc(testDocRef). Path:", testDocRef.path);
         await getDoc(testDocRef); 
-        console.log("[Firestore Test] getDoc call completed. If no error was caught, this implies basic connectivity and correct rules for the test path.");
-        setFirestoreStatus("Firestore connectivity test: getDoc attempted successfully. This suggests basic connection to Firestore is working. If other Firestore features are failing, check their specific queries and security rules.");
+        setFirestoreStatus("Firestore connectivity test: getDoc attempted successfully on a test path. This suggests basic connection and API key validity. If other Firestore features are failing, check their specific queries, data, and security rules.");
         setStatusIsError(false);
       } catch (error: any) {
-        console.error("[Firestore Test] Connectivity test caught an error during getDoc:", error);
-        console.error("[Firestore Test] Error Name:", error.name);
-        console.error("[Firestore Test] Error Code (IMPORTANT):", error.code);
-        console.error("[Firestore Test] Error Message:", error.message);
+        console.warn("[Firestore Test] Connectivity test caught an error during getDoc:", error);
+        console.warn("[Firestore Test] Error Name:", error.name);
+        console.warn("[Firestore Test] Error Code (IMPORTANT!):", error.code);
+        console.warn("[Firestore Test] Error Message:", error.message);
         try {
-            console.error("[Firestore Test] Full Error Object (stringified):", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+            console.warn("[Firestore Test] Full Error Object (stringified):", JSON.stringify(error, Object.getOwnPropertyNames(error)));
         } catch (stringifyError) {
-            console.error("[Firestore Test] Could not stringify full error object:", stringifyError);
+            console.warn("[Firestore Test] Could not stringify full error object:", stringifyError);
         }
         
-        let detailedErrorMessage = `Firestore connection test FAILED. Error message: ${error.message}. Error Code: ${error.code || 'N/A'}.`;
-        
+        let userFriendlyMessage = `Firestore Connection Test FAILED. Error: ${error.message} (Code: ${error.code || 'N/A'}).`;
+        let helpText = "This often indicates a problem with your Firebase project's backend configuration or network access.";
+
         if (error.code === 'unavailable' || (error.message && error.message.toLowerCase().includes("offline"))) {
-          detailedErrorMessage = "Firestore Connection FAILED: Client is OFFLINE or service is UNAVAILABLE. This is a CRITICAL issue. \n1. VERIFY Firestore Database is CREATED and ENABLED in a region in your Firebase project console (Build > Firestore Database). \n2. Ensure 'Cloud Firestore API' is ENABLED in your Google Cloud project. \n3. Check your project's BILLING status in Google Cloud. \n4. Verify network connectivity and try from a different network/incognito window. \n5. Ensure your Firestore Security Rules (even if open) are published correctly.";
-        } else if (error.code === 'permission-denied' || (error.message && error.message.toLowerCase().includes("permission"))) {
-          detailedErrorMessage = "Firestore Connection OK, but Permission Denied for test read. Your Firestore security rules are blocking access to the test path (`_internal_test_collection_/_connectivity_check_doc_`). Ensure rules allow reads (e.g., `allow read: if true;`) for this path or globally for testing, and that rules are PUBLISHED.";
+          userFriendlyMessage = "Firestore Connection FAILED: Client is OFFLINE or service is UNAVAILABLE.";
+          helpText = "CRITICAL: \n1. VERIFY Firestore Database is CREATED and ENABLED in a region in your Firebase project console (Build > Firestore Database). \n2. Ensure 'Cloud Firestore API' is ENABLED in your Google Cloud project. \n3. Check your project's BILLING status in Google Cloud Console (must be active). \n4. Verify network connectivity (try a different network/incognito window). \n5. Ensure your Firestore Security Rules are published and allow access (even if very open for testing). \nSee README for Firebase setup troubleshooting.";
+        } else if (error.code === 'permission-denied') {
+          userFriendlyMessage = "Firestore Connection OK, but Permission Denied for test read.";
+          helpText = "Your Firestore security rules are blocking access to the test path (`_internal_test_collection_/_connectivity_check_doc_`). Ensure rules allow reads for this path or globally for testing (e.g., `match /{document=**} { allow read: if true; }`) AND that rules are PUBLISHED in the Firebase Console.";
         } else if (error.code === 'failed-precondition') {
-            detailedErrorMessage = `Firestore Connection FAILED: Failed precondition. This often means the Firestore database hasn't been created/enabled in a region in your Firebase project, OR the necessary APIs (like Cloud Firestore API) are not enabled. Please check these in the Firebase and Google Cloud consoles. Error: ${error.message}`;
+            userFriendlyMessage = "Firestore Connection FAILED: Failed precondition.";
+            helpText = "This often means the Firestore database hasn't been created/enabled in a region in your Firebase project, OR the necessary APIs (like 'Cloud Firestore API') are not enabled in Google Cloud. Please check these in the Firebase and Google Cloud consoles.";
+        } else if (error.message && error.message.toLowerCase().includes("xhr boats")) {
+            userFriendlyMessage = "Firestore Connection FAILED: Network error (XHR/fetch)."
+            helpText = "This could be a CORS issue if running locally against a deployed backend, a network interruption, an ad-blocker, or a firewall. Check browser network tab for more details on the failed requests to 'firestore.googleapis.com'."
         }
 
-        setFirestoreStatus(detailedErrorMessage);
+        setFirestoreStatus(userFriendlyMessage);
+        setDetailedErrorHelp(helpText);
         setStatusIsError(true);
       }
     };
@@ -116,23 +122,29 @@ export default function DashboardPage() {
       />
 
       {firestoreStatus && (
-        <Card className={`mb-6 ${statusIsError ? 'border-destructive bg-destructive/10' : 'border-green-500 bg-green-500/10'}`}>
+        <Card className={`mb-6 shadow-md ${statusIsError ? 'border-destructive bg-destructive/5 text-destructive' : 'border-green-500 bg-green-500/5 text-green-700'}`}>
           <CardHeader>
-            <CardTitle className={`flex items-center text-sm font-semibold ${statusIsError ? 'text-destructive' : 'text-green-700'}`}>
-              {statusIsError ? <AlertTriangle className="h-5 w-5 mr-2" /> : <CheckCircle2 className="h-5 w-5 mr-2" />}
+            <CardTitle className={`flex items-center text-base font-semibold`}>
+              {statusIsError ? <WifiOff className="h-5 w-5 mr-2 flex-shrink-0" /> : <CheckCircle2 className="h-5 w-5 mr-2 flex-shrink-0" />}
               Firestore Connectivity Status
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className={`text-xs whitespace-pre-wrap ${statusIsError ? 'text-destructive' : 'text-green-600'}`}>{firestoreStatus}</p>
-            {statusIsError && (firestoreStatus.includes("Client is OFFLINE") || firestoreStatus.includes("UNAVAILABLE") || firestoreStatus.includes("Failed precondition")) && (
-                <p className="text-xs text-destructive mt-2">
-                    <strong>Next Steps:</strong> Carefully review the detailed error message above. The most common causes involve your Firebase/Google Cloud project configuration. Refer to the official Firebase documentation for troubleshooting Firestore connectivity.
-                </p>
+          <CardContent className="text-xs space-y-2">
+            <p className="font-medium">{firestoreStatus}</p>
+            {statusIsError && detailedErrorHelp && (
+                <div className="mt-2 pt-2 border-t border-current/20">
+                  <p className="font-semibold mb-1">Possible Causes & Next Steps:</p>
+                  <ul className="list-disc list-inside space-y-1 whitespace-pre-line">
+                    {detailedErrorHelp.split('\n').map((line, idx) => line.trim() && <li key={idx}>{line.replace(/^\d+\.\s*/, '')}</li>)}
+                  </ul>
+                   <p className="mt-3 text-muted-foreground">
+                    Refer to the <Link href="/#readme-firebase-setup" className="underline hover:text-primary">Firebase Setup Guide in the README</Link> for detailed troubleshooting.
+                  </p>
+                </div>
             )}
-             {statusIsError && firestoreStatus.includes("Permission Denied") && (
-                <p className="text-xs text-destructive mt-2">
-                    <strong>Next Steps:</strong> Review your Firestore security rules in the Firebase console. Ensure they allow the necessary read/write operations and are published.
+             {!statusIsError && (
+                <p className="text-xs text-muted-foreground">
+                    If you still encounter issues with specific Firestore features (e.g., loading courses), ensure your security rules for those collections (e.g., 'courses', 'users') are correctly configured in the Firebase Console.
                 </p>
             )}
           </CardContent>
@@ -168,13 +180,23 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <Card className="shadow-lg">
+      <Card className="shadow-lg" id="readme-firebase-setup">
         <CardHeader>
-          <CardTitle className="font-headline text-xl">Quick Reminders</CardTitle>
-          <CardDescription>Stay on top of important tasks and deadlines.</CardDescription>
+          <CardTitle className="font-headline text-xl">Quick Reminders & Setup Notes</CardTitle>
         </CardHeader>
-        <CardContent>
-          <ul className="space-y-2 text-sm">
+        <CardContent className="text-sm space-y-3">
+           <p className="text-destructive font-semibold">
+             If Firestore shows as "OFFLINE" or "UNAVAILABLE" above, your application will not function correctly. Please follow the backend setup steps carefully.
+           </p>
+          <ul className="space-y-1 list-disc list-inside text-muted-foreground">
+            <li>Ensure your <code className="text-xs bg-muted p-1 rounded">.env.local</code> file has the correct Firebase Web App config. (See README).</li>
+            <li>Verify a Firestore Database instance is **created and active in a region** in the Firebase Console.</li>
+            <li>Ensure the **Cloud Firestore API** is ENABLED in your Google Cloud project.</li>
+            <li>Check your Google Cloud project's **Billing status** (must be active).</li>
+            <li>Adjust Firestore **Security Rules** as needed (start with permissive rules for testing).</li>
+          </ul>
+          <h4 className="font-semibold pt-2">Other Tasks:</h4>
+          <ul className="space-y-1">
             <li className="flex items-center"><ArrowRight className="h-4 w-4 mr-2 text-accent" /> Review instructor John Doe's expiring BLS certification (Next month).</li>
             <li className="flex items-center"><ArrowRight className="h-4 w-4 mr-2 text-accent" /> 5 new course completion forms to process.</li>
             <li className="flex items-center"><ArrowRight className="h-4 w-4 mr-2 text-accent" /> Update ACLS curriculum with latest 2024 guidelines.</li>
@@ -184,3 +206,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
