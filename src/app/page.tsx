@@ -51,27 +51,40 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const checkFirestoreConnectivity = async () => {
-      setFirestoreStatus("Testing Firestore connectivity...");
+      setFirestoreStatus("Attempting to connect to Firestore and perform a test read...");
       setStatusIsError(false);
+      console.log("[Firestore Test] Initializing test. Firestore object available:", !!firestore);
+      if (firestore && firestore.app) {
+        console.log("[Firestore Test] Firestore app options:", firestore.app.options);
+      } else {
+        console.error("[Firestore Test] Firestore object or firestore.app is not available prior to test doc ref creation.");
+      }
+
       try {
-        // Attempt to read a non-existent document.
-        // This tests connectivity and basic rules without needing the doc to exist.
-        // The path is arbitrary and only for this test.
         const testDocRef = doc(firestore, '_internal_test_collection_', '_connectivity_check_doc_');
+        console.log("[Firestore Test] Test document reference created:", testDocRef.path);
         await getDoc(testDocRef);
-        // If getDoc doesn't throw, it means we connected to the Firestore backend,
-        // even if the document itself doesn't exist or rules prevent reading this specific path.
-        // A more robust check would be to see if the error is *not* a "client-offline" type.
-        setFirestoreStatus("Firestore connectivity test successful. Basic connection to backend established.");
+        console.log("[Firestore Test] getDoc call successful (or did not throw for non-existent doc if rules allow).");
+        setFirestoreStatus("Firestore connectivity test successful. Basic connection to backend established, and test read was attempted without critical errors.");
         setStatusIsError(false);
       } catch (error: any) {
-        console.error("Firestore connectivity test error:", error);
+        console.error("[Firestore Test] Connectivity test caught an error:", error);
+        console.error("[Firestore Test] Error Name:", error.name);
+        console.error("[Firestore Test] Error Code:", error.code);
+        console.error("[Firestore Test] Error Message:", error.message);
+        // Attempt to stringify the full error, but be mindful of circular references
+        try {
+            console.error("[Firestore Test] Full Error Object (stringified):", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+        } catch (stringifyError) {
+            console.error("[Firestore Test] Could not stringify full error object:", stringifyError);
+        }
+        
         if (error.message && error.message.toLowerCase().includes("offline")) {
-          setFirestoreStatus("Firestore Connection FAILED: Client is offline. CRITICAL: Ensure Firestore database is CREATED in Firebase Console (select region, test mode), Cloud Firestore API is ENABLED in GCP, and .env.local is correct & dev server RESTARTED.");
+          setFirestoreStatus("Firestore Connection FAILED: Client is offline. CRITICAL: Ensure Firestore database is CREATED in Firebase Console (select region, test mode), Cloud Firestore API is ENABLED in GCP, and .env.local is correct & dev server RESTARTED (for local dev). For deployed apps, ensure Firebase project setup is complete.");
         } else if (error.code === 'permission-denied' || (error.message && error.message.toLowerCase().includes("permission"))) {
-          setFirestoreStatus("Firestore Connection OK, but Permission Denied for test read. Check Firestore security rules to allow reads (e.g., `allow read: if true;` for a test path).");
+          setFirestoreStatus("Firestore Connection OK, but Permission Denied for test read. Check Firestore security rules to allow reads on the test path (e.g., `allow read: if true;` for `_internal_test_collection_`).");
         } else {
-          setFirestoreStatus(`Firestore connection test encountered an error: ${error.message}`);
+          setFirestoreStatus(`Firestore connection test encountered an error: ${error.message}. Code: ${error.code || 'N/A'}`);
         }
         setStatusIsError(true);
       }
@@ -99,7 +112,7 @@ export default function DashboardPage() {
             <p className={`text-xs ${statusIsError ? 'text-destructive' : 'text-green-600'}`}>{firestoreStatus}</p>
             {statusIsError && firestoreStatus.includes("Client is offline") && (
                 <p className="text-xs text-destructive mt-2">
-                    <strong>Action Required:</strong> The most common cause is that the Firestore database has not been <strong className="underline">created and enabled</strong> in your Firebase project console. Please go to Firebase Console &gt; Build &gt; Firestore Database. If you see a "Create database" button, click it, choose a region, and select "Test mode". Also ensure the "Cloud Firestore API" is enabled in your Google Cloud project.
+                    <strong>Action Required:</strong> The most common cause is that the Firestore database has not been <strong className="underline">created and enabled in a specific region</strong> in your Firebase project console (Firebase Console > Build > Firestore Database). If it exists, also ensure the "Cloud Firestore API" is enabled in your Google Cloud project for this Firebase project.
                 </p>
             )}
           </CardContent>
